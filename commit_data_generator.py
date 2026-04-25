@@ -44,6 +44,9 @@ AUTHORS = [
     ("Chen Azulay", "2", "Infrastructure")
 ]
 
+START_DATE = datetime(2024, 1, 1)
+END_DATE = datetime(2025, 12, 31, 23, 59)
+
 
 def generate_commit_hash(seed: str) -> str:
     return hashlib.sha1(seed.encode()).hexdigest()
@@ -53,12 +56,39 @@ def clamp(value, min_value, max_value):
     return max(min_value, min(value, max_value))
 
 
+def quarter_start_dates(start_year=2024, end_year=2025):
+    return [
+        datetime(year, month, 1)
+        for year in range(start_year, end_year + 1)
+        for month in (1, 4, 7, 10)
+    ]
+
+
+def random_date_between(start_date, end_date):
+    total_minutes = int((end_date - start_date).total_seconds() // 60)
+    return start_date + timedelta(minutes=random.randint(0, total_minutes))
+
+
+def random_commit_date(index):
+    quarter_starts = quarter_start_dates()
+
+    if index < len(quarter_starts):
+        quarter_start = quarter_starts[index]
+        next_quarter_start = (
+            quarter_starts[index + 1]
+            if index + 1 < len(quarter_starts)
+            else END_DATE
+        )
+        quarter_end = min(next_quarter_start - timedelta(minutes=1), END_DATE)
+        return random_date_between(quarter_start, quarter_end)
+
+    return random_date_between(START_DATE, END_DATE)
+
+
 def generate_mock_data(num_commits=1000):
     data = {}
     all_hashes = []
     quality_map = {}  # internal only
-
-    base_date = datetime(2026, 1, 1)
 
     for i in range(num_commits):
         author, seniority, team = random.choice(AUTHORS)
@@ -71,11 +101,7 @@ def generate_mock_data(num_commits=1000):
         quality_score += random.uniform(-0.08, 0.08)
         quality_score = clamp(quality_score, 0.1, 0.98)
 
-        commit_date = base_date + timedelta(
-            days=random.randint(0, 90),
-            hours=random.randint(0, 23),
-            minutes=random.randint(0, 59)
-        )
+        commit_date = random_commit_date(i)
 
         merge_delay_hours = int(random.uniform(2, 72) * (1.2 - quality_score))
         merge_date = commit_date + timedelta(hours=max(1, merge_delay_hours))
