@@ -55,6 +55,28 @@ TEAM_PROJECTS = {
     "DevOps": ["DeployRail", "HealthBeacon", "CompliancePipeline"]
 }
 
+TEAM_COMMIT_TOPICS = {
+    "Web": ["dashboard filters", "trade blotter views", "strategy editor flows"],
+    "Trading": ["signal thresholds", "order routing", "execution safeguards"],
+    "Infrastructure": ["market data ingestion", "latency telemetry", "execution queues"],
+    "Growth": ["client cohort scoring", "activation funnels", "market alerts"],
+    "Payments": ["settlement reconciliation", "fee calculations", "treasury reports"],
+    "Mobile": ["price alerts", "watchlist syncing", "portfolio snapshots"],
+    "Data": ["feature pipelines", "backtest datasets", "tick normalization"],
+    "DevOps": ["deployment checks", "service health probes", "audit automation"]
+}
+
+COMMIT_TEXT_TEMPLATES = [
+    "Add {project} support for {topic}",
+    "Improve {topic} in {project}",
+    "Refactor {project} {topic}",
+    "Fix {project} edge cases around {topic}",
+    "Tune {project} performance for {topic}",
+    "Add monitoring for {project} {topic}",
+    "Stabilize {project} workflow for {topic}",
+    "Update {project} validation for {topic}"
+]
+
 START_DATE = datetime(2024, 1, 1)
 END_DATE = datetime(2025, 12, 31, 23, 59)
 
@@ -100,6 +122,12 @@ def choose_project(team):
     return random.choice(TEAM_PROJECTS[team])
 
 
+def generate_commit_text(team, project):
+    template = random.choice(COMMIT_TEXT_TEMPLATES)
+    topic = random.choice(TEAM_COMMIT_TOPICS[team])
+    return template.format(project=project, topic=topic)
+
+
 def generate_mock_data(num_commits=1000):
     data = {}
     all_hashes = []
@@ -133,6 +161,7 @@ def generate_mock_data(num_commits=1000):
 
         commit_hash = generate_commit_hash(f"{author}-{model}-{commit_date}-{i}")
         project = choose_project(team)
+        commit_text = generate_commit_text(team, project)
         all_hashes.append(commit_hash)
         quality_map[commit_hash] = quality_score  # internal only
 
@@ -141,6 +170,7 @@ def generate_mock_data(num_commits=1000):
             "authorSeniority": seniority,
             "team": team,
             "project": project,
+            "commitText": commit_text,
             "model": model,
             "commitDate": commit_date.isoformat() + "Z",
             "mergeDate": merge_date.isoformat() + "Z",
