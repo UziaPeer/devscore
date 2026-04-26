@@ -1,8 +1,8 @@
 export type Filters = {
-  team?: string;
-  project?: string;
-  model?: string;
-  seniority?: string;
+  team?: string[];
+  project?: string[];
+  model?: string[];
+  seniority?: string[];
   quarter?: string;
   sprint?: string;
 };

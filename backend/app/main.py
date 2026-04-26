@@ -19,10 +19,10 @@ except Exception:  # pragma: no cover
 
 
 class FilterPayload(BaseModel):
-    team: str | None = None
-    project: str | None = None
-    model: str | None = None
-    seniority: str | None = None
+    team: list[str] | None = None
+    project: list[str] | None = None
+    model: list[str] | None = None
+    seniority: list[str] | None = None
     quarter: str | None = None
     sprint: str | None = None
 
@@ -210,10 +210,10 @@ def analytics_options() -> dict[str, Any]:
 
 @app.get("/analytics/summary")
 def analytics_summary(
-    team: str | None = None,
-    project: str | None = None,
-    model: str | None = None,
-    seniority: str | None = None,
+    team: list[str] | None = Query(default=None),
+    project: list[str] | None = Query(default=None),
+    model: list[str] | None = Query(default=None),
+    seniority: list[str] | None = Query(default=None),
     quarter: str | None = None,
     sprint: str | None = None,
 ) -> dict[str, Any]:
@@ -233,10 +233,10 @@ def analytics_summary(
 @app.get("/analytics/breakdown")
 def analytics_breakdown(
     dimension: Literal["team", "project", "model", "quarter", "sprint", "seniority"] = Query(default="model"),
-    team: str | None = None,
-    project: str | None = None,
-    model: str | None = None,
-    seniority: str | None = None,
+    team: list[str] | None = Query(default=None),
+    project: list[str] | None = Query(default=None),
+    model: list[str] | None = Query(default=None),
+    seniority: list[str] | None = Query(default=None),
     quarter: str | None = None,
     sprint: str | None = None,
 ) -> list[dict[str, Any]]:
@@ -255,10 +255,10 @@ def analytics_breakdown(
 
 @app.get("/analytics/trend")
 def analytics_trend(
-    team: str | None = None,
-    project: str | None = None,
-    model: str | None = None,
-    seniority: str | None = None,
+    team: list[str] | None = Query(default=None),
+    project: list[str] | None = Query(default=None),
+    model: list[str] | None = Query(default=None),
+    seniority: list[str] | None = Query(default=None),
     quarter: str | None = None,
     sprint: str | None = None,
 ) -> dict[str, Any]:

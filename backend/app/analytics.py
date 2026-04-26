@@ -140,22 +140,26 @@ def load_enriched_commits() -> list[dict[str, Any]]:
 def apply_filters(
     rows: list[dict[str, Any]],
     *,
-    team: str | None = None,
-    project: str | None = None,
-    model: str | None = None,
-    seniority: str | None = None,
+    team: list[str] | None = None,
+    project: list[str] | None = None,
+    model: list[str] | None = None,
+    seniority: list[str] | None = None,
     quarter: str | None = None,
     sprint: str | None = None,
 ) -> list[dict[str, Any]]:
     result = rows
     if team:
-        result = [row for row in result if row.get("team") == team]
+        allowed = set(team)
+        result = [row for row in result if row.get("team") in allowed]
     if project:
-        result = [row for row in result if row.get("project") == project]
+        allowed = set(project)
+        result = [row for row in result if row.get("project") in allowed]
     if model:
-        result = [row for row in result if row.get("model") == model]
+        allowed = set(model)
+        result = [row for row in result if row.get("model") in allowed]
     if seniority:
-        result = [row for row in result if row.get("seniority") == seniority]
+        allowed = set(seniority)
+        result = [row for row in result if row.get("seniority") in allowed]
     if quarter:
         result = [row for row in result if row.get("quarter") == quarter]
     if sprint:

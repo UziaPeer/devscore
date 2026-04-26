@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Bot, ChartNoAxesCombined, Coins, FileUp, Filter, Sparkles } from "lucide-react";
+import { Bot, ChartNoAxesCombined, ChevronDown, Coins, FileUp, Filter, Sparkles } from "lucide-react";
 
 import { getBreakdown, getDataSource, getOptions, getSummary, getTrend, postAI, uploadDataSource } from "../lib/api";
 import type { AIItem, BreakdownItem, DataSourceInfo, Filters, OptionsPayload, Summary, TrendPayload } from "../lib/types";
@@ -65,6 +65,108 @@ function SelectField({
         ))}
       </select>
     </label>
+  );
+}
+
+function MultiCheckboxField({
+  label,
+  values,
+  options,
+  onChange
+}: {
+  label: string;
+  values: string[];
+  options: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function onDocumentClick(event: MouseEvent) {
+      if (!wrapperRef.current) {
+        return;
+      }
+      if (!wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", onDocumentClick);
+    return () => document.removeEventListener("mousedown", onDocumentClick);
+  }, []);
+
+  const buttonText = values.length === 0 ? "All" : values.length === 1 ? values[0] : `${values.length} selected`;
+
+  return (
+    <div ref={wrapperRef} style={{ position: "relative", minWidth: 140 }}>
+      <label style={{ display: "grid", gap: 4 }}>
+        <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>{label}</span>
+      </label>
+      <button
+        type="button"
+        onClick={() => setIsOpen((previous) => !previous)}
+        style={{
+          width: "100%",
+          height: 36,
+          borderRadius: 8,
+          border: "1px solid var(--border)",
+          padding: "0 10px",
+          backgroundColor: "var(--surface)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          color: "var(--text)",
+          fontSize: 14
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{buttonText}</span>
+        <ChevronDown size={15} color="var(--text-muted)" />
+      </button>
+      {isOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: 44,
+            left: 0,
+            right: 0,
+            zIndex: 40,
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            backgroundColor: "var(--surface)",
+            boxShadow: "0 8px 20px rgba(24, 38, 29, 0.12)",
+            maxHeight: 220,
+            overflow: "auto",
+            padding: 8,
+            display: "grid",
+            gap: 6
+          }}
+        >
+          {options.map((option) => {
+            const checked = values.includes(option);
+            return (
+              <label key={option} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(event) => {
+                    const nextSet = new Set(values);
+                    if (event.target.checked) {
+                      nextSet.add(option);
+                    } else {
+                      nextSet.delete(option);
+                    }
+                    onChange(Array.from(nextSet));
+                  }}
+                />
+                <span>{option}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -156,10 +258,15 @@ export function Dashboard() {
 
   const lineData = useMemo(() => trend.points, [trend.points]);
   const projectOptions = useMemo(() => {
-    if (!filters.team) {
+    const selectedTeams = filters.team ?? [];
+    if (selectedTeams.length === 0) {
       return options.projects;
     }
-    return options.team_projects[filters.team] ?? [];
+    const union = new Set<string>();
+    selectedTeams.forEach((teamName) => {
+      (options.team_projects[teamName] ?? []).forEach((projectName) => union.add(projectName));
+    });
+    return Array.from(union).sort();
   }, [filters.team, options.projects, options.team_projects]);
   const sprintOptions = useMemo(() => {
     if (!filters.quarter) {
@@ -169,13 +276,15 @@ export function Dashboard() {
   }, [filters.quarter, options.sprints, options.quarter_sprints]);
 
   useEffect(() => {
-    if (!filters.project) {
+    const selectedProjects = filters.project ?? [];
+    if (selectedProjects.length === 0) {
       return;
     }
-    if (projectOptions.includes(filters.project)) {
+    const validProjects = selectedProjects.filter((projectName) => projectOptions.includes(projectName));
+    if (validProjects.length === selectedProjects.length) {
       return;
     }
-    setFilters((previous) => ({ ...previous, project: undefined }));
+    setFilters((previous) => ({ ...previous, project: validProjects.length ? validProjects : undefined }));
   }, [filters.project, projectOptions]);
 
   useEffect(() => {
@@ -296,22 +405,47 @@ export function Dashboard() {
             <strong style={{ fontSize: 13 }}>Filters</strong>
           </div>
           <div className="filter-controls">
-            <SelectField
+            <MultiCheckboxField
               label="Team"
-              value={filters.team ?? ""}
+              values={filters.team ?? []}
               options={options.teams}
-              onChange={(value) => {
-                const nextTeam = value || undefined;
+              onChange={(nextTeams) => {
+                const teamValues = nextTeams.length ? nextTeams : undefined;
                 setFilters((previous) => {
-                  const nextProjectOptions = nextTeam ? options.team_projects[nextTeam] ?? [] : options.projects;
-                  const nextProject = previous.project && nextProjectOptions.includes(previous.project) ? previous.project : undefined;
-                  return { ...previous, team: nextTeam, project: nextProject };
+                  const allowedProjects = new Set<string>();
+                  (teamValues ?? []).forEach((teamName) => {
+                    (options.team_projects[teamName] ?? []).forEach((projectName) => allowedProjects.add(projectName));
+                  });
+                  const currentProjects = previous.project ?? [];
+                  const filteredProjects = teamValues
+                    ? currentProjects.filter((projectName) => allowedProjects.has(projectName))
+                    : currentProjects;
+                  return {
+                    ...previous,
+                    team: teamValues,
+                    project: filteredProjects.length ? filteredProjects : undefined
+                  };
                 });
               }}
             />
-            <SelectField label="Project" value={filters.project ?? ""} options={projectOptions} onChange={(value) => setFilters((prev) => ({ ...prev, project: value || undefined }))} />
-            <SelectField label="Model" value={filters.model ?? ""} options={options.models} onChange={(value) => setFilters((prev) => ({ ...prev, model: value || undefined }))} />
-            <SelectField label="Seniority" value={filters.seniority ?? ""} options={options.seniority_levels} onChange={(value) => setFilters((prev) => ({ ...prev, seniority: value || undefined }))} />
+            <MultiCheckboxField
+              label="Project"
+              values={filters.project ?? []}
+              options={projectOptions}
+              onChange={(value) => setFilters((prev) => ({ ...prev, project: value.length ? value : undefined }))}
+            />
+            <MultiCheckboxField
+              label="Model"
+              values={filters.model ?? []}
+              options={options.models}
+              onChange={(value) => setFilters((prev) => ({ ...prev, model: value.length ? value : undefined }))}
+            />
+            <MultiCheckboxField
+              label="Seniority"
+              values={filters.seniority ?? []}
+              options={options.seniority_levels}
+              onChange={(value) => setFilters((prev) => ({ ...prev, seniority: value.length ? value : undefined }))}
+            />
             <SelectField
               label="Quarter"
               value={filters.quarter ?? ""}

@@ -5,7 +5,16 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
 function buildQuery(filters: Filters): string {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
-    if (value) {
+    if (!value) {
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (item) {
+          params.append(key, item);
+        }
+      });
+    } else {
       params.set(key, value);
     }
   });
