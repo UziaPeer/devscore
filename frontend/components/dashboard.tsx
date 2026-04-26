@@ -143,6 +143,16 @@ function MultiCheckboxField({
             gap: 6
           }}
         >
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", paddingBottom: 4, borderBottom: "1px solid var(--border)" }}>
+            <input
+              type="checkbox"
+              checked={values.length === 0}
+              onChange={() => {
+                onChange([]);
+              }}
+            />
+            <span>All</span>
+          </label>
           {options.map((option) => {
             const checked = values.includes(option);
             return (
