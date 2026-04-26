@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Bot, ChartNoAxesCombined, ChevronDown, Coins, FileUp, Filter, Sparkles } from "lucide-react";
 
 import { getBreakdown, getDataSource, getOptions, getSummary, getTrend, postAI, uploadDataSource } from "../lib/api";
@@ -17,6 +17,24 @@ const emptySummary: Summary = {
   cost_per_performance_point: 0,
   best_model_by_roi: null
 };
+
+const MODEL_BAR_COLORS: Record<string, string> = {
+  claude: "#DE7356",
+  gemini: "#4796E3",
+  codellama: "#0668E1",
+  "code-llama": "#0668E1",
+  llama: "#0668E1",
+  "gpt-4": "#00A67E",
+  "gpt4": "#00A67E",
+  "gpt-3.5": "#00A67E",
+  "gpt3.5": "#00A67E",
+  "gpt-35": "#00A67E"
+};
+
+function getModelBarColor(modelName: string): string {
+  const normalized = modelName.trim().toLowerCase();
+  return MODEL_BAR_COLORS[normalized] ?? "var(--brand)";
+}
 
 type AiPanelState = {
   insights: AIItem[];
@@ -601,9 +619,12 @@ export function Dashboard() {
                 <Tooltip />
                 <Bar
                   dataKey={modelChartTab === "performance" ? "avg_performance_score" : "estimated_spend"}
-                  fill={modelChartTab === "performance" ? "#119542" : "#1db954"}
                   radius={[4, 4, 0, 0]}
-                />
+                >
+                  {byModel.map((item) => (
+                    <Cell key={`model-bar-${item.value}`} fill={getModelBarColor(item.value)} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
