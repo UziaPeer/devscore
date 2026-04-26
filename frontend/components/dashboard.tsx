@@ -357,6 +357,22 @@ export function Dashboard() {
   return (
     <main className="page-shell">
       <section
+        style={{
+          display: "flex",
+          justifyContent: "flex-start",
+          alignItems: "center",
+          marginBottom: 10,
+          paddingLeft: 2
+        }}
+      >
+        <img
+          src="https://www.etoro.com/wp-content/themes/etoro/assets/images/logo.svg"
+          alt="eToro logo"
+          style={{ width: 132, height: "auto", display: "block" }}
+        />
+      </section>
+
+      <section
         className="panel"
         style={{
           display: "flex",
