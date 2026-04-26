@@ -33,6 +33,8 @@ export type BreakdownItem = {
 export type OptionsPayload = {
   teams: string[];
   projects: string[];
+  team_projects: Record<string, string[]>;
+  quarter_sprints: Record<string, string[]>;
   models: string[];
   seniority_levels: string[];
   quarters: string[];
@@ -46,4 +48,17 @@ export type DataSourceInfo = {
   records: number;
   size_bytes: number;
   updated_at: string;
+};
+
+export type TrendPoint = {
+  label: string;
+  estimated_spend: number;
+  commits: number;
+  avg_performance_score: number;
+};
+
+export type TrendPayload = {
+  mode: "quarterly" | "quarter_sprints" | "sprint_daily";
+  title: string;
+  points: TrendPoint[];
 };

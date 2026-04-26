@@ -1,4 +1,4 @@
-import type { AIItem, BreakdownItem, DataSourceInfo, Filters, OptionsPayload, Summary } from "./types";
+import type { AIItem, BreakdownItem, DataSourceInfo, Filters, OptionsPayload, Summary, TrendPayload } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -30,6 +30,11 @@ export async function getBreakdown(dimension: string, filters: Filters): Promise
   const query = buildQuery(filters);
   const suffix = query ? `&${query}` : "";
   return fetchJson<BreakdownItem[]>(`/analytics/breakdown?dimension=${dimension}${suffix}`);
+}
+
+export async function getTrend(filters: Filters): Promise<TrendPayload> {
+  const query = buildQuery(filters);
+  return fetchJson<TrendPayload>(`/analytics/trend${query ? `?${query}` : ""}`);
 }
 
 export async function getOptions(): Promise<OptionsPayload> {

@@ -61,11 +61,30 @@ a {
   margin-top: 12px;
 }
 
+.filters-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, calc((100% - 36px) / 4));
+  gap: 12px;
+  margin-bottom: 12px;
+  align-items: stretch;
+}
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.data-source-compact {
+  height: 100%;
+}
+
 @media (max-width: 1080px) {
   .kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .filters-layout,
   .chart-grid,
   .table-grid {
     grid-template-columns: 1fr;

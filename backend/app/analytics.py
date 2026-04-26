@@ -43,6 +43,13 @@ def _estimate_tokens(revisions: int, comments: int, overrides: int, bug_fixes: i
     return max(input_tokens, 1), max(output_tokens, 1)
 
 
+def _sprint_sort_key(value: str) -> int:
+    try:
+        return int(value.split(" ", 1)[1])
+    except Exception:
+        return 0
+
+
 def load_enriched_commits() -> list[dict[str, Any]]:
     raw_commits = _load_json(COMMITS_PATH)
     pricing = _load_json(PRICING_PATH)
@@ -234,12 +241,99 @@ def breakdown(rows: list[dict[str, Any]], dimension: str) -> list[dict[str, Any]
     return response
 
 
-def options(rows: list[dict[str, Any]]) -> dict[str, list[str]]:
+def spend_trend(rows: list[dict[str, Any]], *, quarter: str | None = None, sprint: str | None = None) -> dict[str, Any]:
+    if sprint:
+        groups: dict[str, list[dict[str, Any]]] = {}
+        for item in rows:
+            day_label = datetime.fromisoformat(item["commit_date"]).strftime("%Y-%m-%d")
+            groups.setdefault(day_label, []).append(item)
+
+        points: list[dict[str, Any]] = []
+        for label, group_rows in groups.items():
+            spend = sum(entry["estimated_cost"] for entry in group_rows)
+            points.append(
+                {
+                    "label": label,
+                    "estimated_spend": round(spend, 4),
+                    "commits": len(group_rows),
+                    "avg_performance_score": round(sum(entry["performance_score"] for entry in group_rows) / len(group_rows), 2),
+                }
+            )
+        points.sort(key=lambda item: item["label"])
+        return {
+            "mode": "sprint_daily",
+            "title": f"Sprint Trend ({sprint})",
+            "points": points,
+        }
+
+    if quarter:
+        groups: dict[str, list[dict[str, Any]]] = {}
+        for item in rows:
+            groups.setdefault(item["sprint"], []).append(item)
+
+        points = []
+        for label, group_rows in groups.items():
+            spend = sum(entry["estimated_cost"] for entry in group_rows)
+            points.append(
+                {
+                    "label": label,
+                    "estimated_spend": round(spend, 4),
+                    "commits": len(group_rows),
+                    "avg_performance_score": round(sum(entry["performance_score"] for entry in group_rows) / len(group_rows), 2),
+                }
+            )
+        points.sort(key=lambda item: _sprint_sort_key(item["label"]))
+        return {
+            "mode": "quarter_sprints",
+            "title": f"Sprint Spend Trend ({quarter})",
+            "points": points,
+        }
+
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for item in rows:
+        groups.setdefault(item["quarter"], []).append(item)
+
+    points = []
+    for label, group_rows in groups.items():
+        spend = sum(entry["estimated_cost"] for entry in group_rows)
+        points.append(
+            {
+                "label": label,
+                "estimated_spend": round(spend, 4),
+                "commits": len(group_rows),
+                "avg_performance_score": round(sum(entry["performance_score"] for entry in group_rows) / len(group_rows), 2),
+            }
+        )
+    points.sort(key=lambda item: item["label"])
+    return {
+        "mode": "quarterly",
+        "title": "Quarterly Spend Trend",
+        "points": points,
+    }
+
+
+def options(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    team_projects: dict[str, set[str]] = {}
+    quarter_sprints: dict[str, set[str]] = {}
+    for item in rows:
+        team = item.get("team")
+        project = item.get("project")
+        quarter = item.get("quarter")
+        sprint = item.get("sprint")
+        if team and project:
+            team_projects.setdefault(team, set()).add(project)
+        if quarter and sprint:
+            quarter_sprints.setdefault(quarter, set()).add(sprint)
+
     return {
         "teams": sorted({item["team"] for item in rows if item.get("team")}),
         "projects": sorted({item["project"] for item in rows if item.get("project")}),
         "models": sorted({item["model"] for item in rows if item.get("model")}),
         "seniority_levels": sorted({item["seniority"] for item in rows if item.get("seniority")}),
         "quarters": sorted({item["quarter"] for item in rows if item.get("quarter")}),
-        "sprints": sorted({item["sprint"] for item in rows if item.get("sprint")}),
+        "sprints": sorted({item["sprint"] for item in rows if item.get("sprint")}, key=_sprint_sort_key),
+        "team_projects": {team: sorted(list(projects)) for team, projects in team_projects.items()},
+        "quarter_sprints": {
+            quarter_key: sorted(list(sprints), key=_sprint_sort_key) for quarter_key, sprints in quarter_sprints.items()
+        },
     }

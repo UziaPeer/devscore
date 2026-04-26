@@ -10,7 +10,7 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .analytics import COMMITS_PATH, apply_filters, breakdown, load_enriched_commits, options, summarize
+from .analytics import COMMITS_PATH, apply_filters, breakdown, load_enriched_commits, options, spend_trend, summarize
 
 try:
     from openai import OpenAI
@@ -204,7 +204,7 @@ async def data_upload(file: UploadFile = File(...)) -> DataSourceResponse:
 
 
 @app.get("/analytics/options")
-def analytics_options() -> dict[str, list[str]]:
+def analytics_options() -> dict[str, Any]:
     return options(_all_rows())
 
 
@@ -251,6 +251,28 @@ def analytics_breakdown(
         )
     )
     return breakdown(rows, dimension)
+
+
+@app.get("/analytics/trend")
+def analytics_trend(
+    team: str | None = None,
+    project: str | None = None,
+    model: str | None = None,
+    seniority: str | None = None,
+    quarter: str | None = None,
+    sprint: str | None = None,
+) -> dict[str, Any]:
+    rows = _filtered_rows(
+        FilterPayload(
+            team=team,
+            project=project,
+            model=model,
+            seniority=seniority,
+            quarter=quarter,
+            sprint=sprint,
+        )
+    )
+    return spend_trend(rows, quarter=quarter, sprint=sprint)
 
 
 @app.post("/ai/insights", response_model=AIResponse)

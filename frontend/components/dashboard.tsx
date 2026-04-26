@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Bot, ChartNoAxesCombined, Coins, FileUp, Filter, Sparkles } from "lucide-react";
 
-import { getBreakdown, getDataSource, getOptions, getSummary, postAI, uploadDataSource } from "../lib/api";
-import type { AIItem, BreakdownItem, DataSourceInfo, Filters, OptionsPayload, Summary } from "../lib/types";
+import { getBreakdown, getDataSource, getOptions, getSummary, getTrend, postAI, uploadDataSource } from "../lib/api";
+import type { AIItem, BreakdownItem, DataSourceInfo, Filters, OptionsPayload, Summary, TrendPayload } from "../lib/types";
 
 const emptySummary: Summary = {
   total_commits: 0,
@@ -30,27 +30,6 @@ type AiPanelState = {
 
 function money(value: number): string {
   return `$${value.toFixed(4)}`;
-}
-
-function formatDate(value: string | null | undefined): string {
-  if (!value) {
-    return "N/A";
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-}
-
-function formatBytes(bytes: number | null | undefined): string {
-  if (!bytes || bytes < 0) {
-    return "N/A";
-  }
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 function SelectField({
@@ -109,10 +88,6 @@ function KpiCard({
   );
 }
 
-function toLineData(rows: BreakdownItem[]) {
-  return [...rows].sort((a, b) => a.value.localeCompare(b.value));
-}
-
 function extractMessage(aiItem: AIItem): string {
   const text = aiItem.finding ?? aiItem.answer ?? aiItem.rationale ?? aiItem.reason ?? aiItem.action;
   return typeof text === "string" ? text : JSON.stringify(aiItem);
@@ -121,8 +96,7 @@ function extractMessage(aiItem: AIItem): string {
 export function Dashboard() {
   const [filters, setFilters] = useState<Filters>({});
   const [reloadTick, setReloadTick] = useState(0);
-  const [fileInputKey, setFileInputKey] = useState(0);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const hiddenFileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -131,6 +105,8 @@ export function Dashboard() {
   const [options, setOptions] = useState<OptionsPayload>({
     teams: [],
     projects: [],
+    team_projects: {},
+    quarter_sprints: {},
     models: [],
     seniority_levels: [],
     quarters: [],
@@ -139,7 +115,7 @@ export function Dashboard() {
 
   const [summary, setSummary] = useState<Summary>(emptySummary);
   const [byModel, setByModel] = useState<BreakdownItem[]>([]);
-  const [byQuarter, setByQuarter] = useState<BreakdownItem[]>([]);
+  const [trend, setTrend] = useState<TrendPayload>({ mode: "quarterly", title: "Quarterly Spend Trend", points: [] });
   const [byProject, setByProject] = useState<BreakdownItem[]>([]);
   const [backendError, setBackendError] = useState<string | null>(null);
   const [query, setQuery] = useState("Which project has the worst cost per performance point?");
@@ -165,11 +141,11 @@ export function Dashboard() {
   }, [reloadTick]);
 
   useEffect(() => {
-    Promise.all([getSummary(filters), getBreakdown("model", filters), getBreakdown("quarter", filters), getBreakdown("project", filters)])
-      .then(([summaryPayload, modelBreakdown, quarterBreakdown, projectBreakdown]) => {
+    Promise.all([getSummary(filters), getBreakdown("model", filters), getTrend(filters), getBreakdown("project", filters)])
+      .then(([summaryPayload, modelBreakdown, trendPayload, projectBreakdown]) => {
         setSummary(summaryPayload);
         setByModel(modelBreakdown);
-        setByQuarter(quarterBreakdown);
+        setTrend(trendPayload);
         setByProject(projectBreakdown);
         setBackendError(null);
       })
@@ -178,7 +154,39 @@ export function Dashboard() {
       });
   }, [filters, reloadTick]);
 
-  const lineData = useMemo(() => toLineData(byQuarter), [byQuarter]);
+  const lineData = useMemo(() => trend.points, [trend.points]);
+  const projectOptions = useMemo(() => {
+    if (!filters.team) {
+      return options.projects;
+    }
+    return options.team_projects[filters.team] ?? [];
+  }, [filters.team, options.projects, options.team_projects]);
+  const sprintOptions = useMemo(() => {
+    if (!filters.quarter) {
+      return options.sprints;
+    }
+    return options.quarter_sprints[filters.quarter] ?? [];
+  }, [filters.quarter, options.sprints, options.quarter_sprints]);
+
+  useEffect(() => {
+    if (!filters.project) {
+      return;
+    }
+    if (projectOptions.includes(filters.project)) {
+      return;
+    }
+    setFilters((previous) => ({ ...previous, project: undefined }));
+  }, [filters.project, projectOptions]);
+
+  useEffect(() => {
+    if (!filters.sprint) {
+      return;
+    }
+    if (sprintOptions.includes(filters.sprint)) {
+      return;
+    }
+    setFilters((previous) => ({ ...previous, sprint: undefined }));
+  }, [filters.sprint, sprintOptions]);
 
   async function runAiActions() {
     setAiState((previous) => ({ ...previous, loading: true, error: null }));
@@ -208,19 +216,13 @@ export function Dashboard() {
     }
   }
 
-  async function handleUpload() {
-    if (!uploadFile) {
-      setUploadError("Choose a JSON file first.");
-      return;
-    }
+  async function handleUpload(file: File) {
     setUploadLoading(true);
     setUploadError(null);
     setUploadMessage(null);
     try {
-      const source = await uploadDataSource(uploadFile);
+      const source = await uploadDataSource(file);
       setDataSource(source);
-      setUploadFile(null);
-      setFileInputKey((value) => value + 1);
       setReloadTick((value) => value + 1);
       setUploadMessage(`Uploaded ${source.filename}. Dashboard data refreshed.`);
     } catch (error) {
@@ -228,6 +230,19 @@ export function Dashboard() {
     } finally {
       setUploadLoading(false);
     }
+  }
+
+  function openFilePicker() {
+    hiddenFileInputRef.current?.click();
+  }
+
+  function onFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) {
+      return;
+    }
+    void handleUpload(selectedFile);
+    event.target.value = "";
   }
 
   return (
@@ -274,66 +289,91 @@ export function Dashboard() {
         </section>
       )}
 
-      <section className="panel" style={{ padding: 12, marginBottom: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>Data Source</div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              Current file: <strong style={{ color: "var(--text)" }}>{dataSource?.filename ?? "N/A"}</strong>
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              Records: {dataSource?.records ?? 0} | Size: {formatBytes(dataSource?.size_bytes)} | Updated: {formatDate(dataSource?.updated_at)}
-            </div>
+      <div className="filters-layout">
+        <section className="panel" style={{ padding: 12 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
+            <Filter size={14} color="var(--text-muted)" />
+            <strong style={{ fontSize: 13 }}>Filters</strong>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <input
-              key={fileInputKey}
-              type="file"
-              accept=".json,application/json"
-              onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
-              style={{ maxWidth: 240 }}
-            />
-            <button
-              type="button"
-              onClick={handleUpload}
-              disabled={uploadLoading}
-              style={{
-                borderRadius: 8,
-                border: "none",
-                backgroundColor: uploadLoading ? "#89cfa4" : "var(--brand)",
-                color: "white",
-                fontWeight: 700,
-                height: 36,
-                padding: "0 12px",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                cursor: uploadLoading ? "not-allowed" : "pointer"
+          <div className="filter-controls">
+            <SelectField
+              label="Team"
+              value={filters.team ?? ""}
+              options={options.teams}
+              onChange={(value) => {
+                const nextTeam = value || undefined;
+                setFilters((previous) => {
+                  const nextProjectOptions = nextTeam ? options.team_projects[nextTeam] ?? [] : options.projects;
+                  const nextProject = previous.project && nextProjectOptions.includes(previous.project) ? previous.project : undefined;
+                  return { ...previous, team: nextTeam, project: nextProject };
+                });
               }}
-            >
-              <FileUp size={16} />
-              {uploadLoading ? "Uploading..." : "Upload & Replace"}
-            </button>
+            />
+            <SelectField label="Project" value={filters.project ?? ""} options={projectOptions} onChange={(value) => setFilters((prev) => ({ ...prev, project: value || undefined }))} />
+            <SelectField label="Model" value={filters.model ?? ""} options={options.models} onChange={(value) => setFilters((prev) => ({ ...prev, model: value || undefined }))} />
+            <SelectField label="Seniority" value={filters.seniority ?? ""} options={options.seniority_levels} onChange={(value) => setFilters((prev) => ({ ...prev, seniority: value || undefined }))} />
+            <SelectField
+              label="Quarter"
+              value={filters.quarter ?? ""}
+              options={options.quarters}
+              onChange={(value) => {
+                const nextQuarter = value || undefined;
+                setFilters((previous) => {
+                  const nextSprintOptions = nextQuarter ? options.quarter_sprints[nextQuarter] ?? [] : options.sprints;
+                  const nextSprint = previous.sprint && nextSprintOptions.includes(previous.sprint) ? previous.sprint : undefined;
+                  return { ...previous, quarter: nextQuarter, sprint: nextSprint };
+                });
+              }}
+            />
+            <SelectField label="Sprint" value={filters.sprint ?? ""} options={sprintOptions} onChange={(value) => setFilters((prev) => ({ ...prev, sprint: value || undefined }))} />
           </div>
-        </div>
-        {uploadMessage && <div style={{ marginTop: 8, fontSize: 12, color: "var(--brand-dark)" }}>{uploadMessage}</div>}
-        {uploadError && <div style={{ marginTop: 8, fontSize: 12, color: "var(--danger)" }}>{uploadError}</div>}
-      </section>
-
-      <section className="panel" style={{ padding: 12, marginBottom: 12 }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
-          <Filter size={14} color="var(--text-muted)" />
-          <strong style={{ fontSize: 13 }}>Filters</strong>
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-          <SelectField label="Team" value={filters.team ?? ""} options={options.teams} onChange={(value) => setFilters((prev) => ({ ...prev, team: value || undefined }))} />
-          <SelectField label="Project" value={filters.project ?? ""} options={options.projects} onChange={(value) => setFilters((prev) => ({ ...prev, project: value || undefined }))} />
-          <SelectField label="Model" value={filters.model ?? ""} options={options.models} onChange={(value) => setFilters((prev) => ({ ...prev, model: value || undefined }))} />
-          <SelectField label="Seniority" value={filters.seniority ?? ""} options={options.seniority_levels} onChange={(value) => setFilters((prev) => ({ ...prev, seniority: value || undefined }))} />
-          <SelectField label="Quarter" value={filters.quarter ?? ""} options={options.quarters} onChange={(value) => setFilters((prev) => ({ ...prev, quarter: value || undefined }))} />
-          <SelectField label="Sprint" value={filters.sprint ?? ""} options={options.sprints} onChange={(value) => setFilters((prev) => ({ ...prev, sprint: value || undefined }))} />
-        </div>
-      </section>
+        </section>
+        <section
+          className="panel data-source-compact"
+          style={{
+            padding: 12,
+            display: "grid",
+            gap: 8,
+            alignContent: "start"
+          }}
+        >
+          <div style={{ fontWeight: 800, fontSize: 13 }}>Data Source</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            Current file: <strong style={{ color: "var(--text)" }}>{dataSource?.filename ?? "N/A"}</strong>
+          </div>
+          <input
+            ref={hiddenFileInputRef}
+            type="file"
+            accept=".json,application/json"
+            onChange={onFileSelected}
+            style={{ display: "none" }}
+          />
+          <button
+            type="button"
+            onClick={openFilePicker}
+            disabled={uploadLoading}
+            style={{
+              borderRadius: 8,
+              border: "none",
+              backgroundColor: uploadLoading ? "#89cfa4" : "var(--brand)",
+              color: "white",
+              fontWeight: 700,
+              height: 34,
+              padding: "0 12px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              cursor: uploadLoading ? "not-allowed" : "pointer"
+            }}
+          >
+            <FileUp size={15} />
+            {uploadLoading ? "Uploading..." : "Upload & Replace"}
+          </button>
+          {uploadMessage && <div style={{ fontSize: 11, color: "var(--brand-dark)" }}>{uploadMessage}</div>}
+          {uploadError && <div style={{ fontSize: 11, color: "var(--danger)" }}>{uploadError}</div>}
+        </section>
+      </div>
 
       <section className="kpi-grid">
         <KpiCard title="Estimated Spend" value={money(summary.total_spend)} icon={<Coins size={18} />} />
@@ -358,12 +398,12 @@ export function Dashboard() {
           </div>
         </article>
         <article className="panel" style={{ padding: 14, minHeight: 280 }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>Quarterly Spend Trend</h3>
+          <h3 style={{ margin: 0, fontSize: 16 }}>{trend.title}</h3>
           <div style={{ height: 240 }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={lineData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#dfe7e2" />
-                <XAxis dataKey="value" tick={{ fontSize: 11 }} />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Line type="monotone" dataKey="estimated_spend" stroke="#119542" strokeWidth={2} dot={{ r: 2 }} />
