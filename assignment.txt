@@ -1,0 +1,89 @@
+*Candidate Assignment - AI Cost & Usage Intelligence Dashboard*
+
+### Background
+Our company uses a variety of AI tools - different models (GPT-4, Claude, Gemini, etc.), different platforms (direct API, Cursor, Copilot, etc.), and different pricing structures (per token, subscription, per seat). Currently, we have no unified visibility into usage, costs, or ROI across these tools.
+
+We want to change that and we want AI itself to be part of the solution.
+
+### Your Task
+Build a **working prototype** of an intelligent dashboard that provides visibility into AI usage and costs across the organization and uses an LLM to make that data actionable.
+
+**Minimum requirements:**
+- Load data from a file (CSV / JSON, you can generate mock data yourself)
+- Display a cost breakdown by tool / model / time period
+- Define and display at least one "efficiency" or "value" metric of your own choosing
+- **At least one AI-powered feature** - examples below
+- A UI that can be presented in a meeting (web app, notebook, or anything that runs)
+
+**AI-powered feature, choose at least one:**
+- **Natural language querying** — let a user ask questions about the data in plain English ("Which team overspent this month?")
+- **Automated insight generation** — use an LLM to surface anomalies or trends ("Usage on GPT-4 spiked 3x this week")
+- **Optimization recommendations** — suggest where to cut costs or switch models based on usage patterns
+- **Smart categorization** — automatically tag or classify usage logs by purpose, team, or productivity level
+
+You're welcome to go beyond this list.
+
+**You have full freedom to choose:**
+- Technology stack 
+- Which LLM or API you use for the AI feature
+- Data structure, schema, and metrics
+- How you define and measure "value" vs. cost
+
+### Presentation (30 minutes)
+We'll ask you to walk us through your prototype and answer questions. We'll evaluate:
+
+| Criteria | What we're looking for |
+|---|---|
+| **Problem understanding** | Did you grasp what actually matters to a business? |
+| **AI integration** | Is the LLM feature genuinely useful, or just bolted on? |
+| **Metric design** | Are the metrics you chose meaningful and actionable? |
+| **Working code** | A prototype that actually runs |
+| **Communication** | Can you explain your decisions and respond to questions? |
+
+### Preparation Questions
+Please send us answers to these before the presentation:
+1. Which metrics did you choose, and why?
+2. Which AI feature did you build, and what problem does it solve?
+3. What would you do differently with another week of work?
+4. How would you obtain real data and scale this in a production environment?
+
+
+עם תרגום:
+*משימת מועמד - לוח בקרה (Dashboard) לבינה מלאכותית: עלויות ושימוש*
+### רקע
+החברה שלנו משתמשת במגוון כלי AI - מודלים שונים (GPT-4, Claude, Gemini וכו'), פלטפורמות שונות (API ישיר, Cursor, Copilot וכו') ומבני תמחור שונים (לפי טוקנים, מנוי, לפי משתמש). כיום, אין לנו נראות מאוחדת לגבי השימוש, העלויות או ה-ROI (החזר השקעה) בכל הכלים הללו.
+אנחנו רוצים לשנות את זה, ואנחנו רוצים שה-AI עצמו יהיה חלק מהפתרון.
+### המשימה שלך
+בנה **אב-טיפוס עובד** של לוח בקרה חכם המספק נראות לגבי השימוש והעלויות של AI ברחבי הארגון, ומשתמש ב-LLM כדי להפוך את הנתונים הללו לניתנים ליישום (Actionable).
+**דרישות מינימום:**
+ * טעינת נתונים מקובץ (CSV / JSON, ניתן לייצר נתוני דוגמה בעצמך)
+ * הצגת פירוט עלויות לפי כלי / מודל / תקופת זמן
+ * הגדרה והצגה של לפחות מדד "יעילות" או "ערך" אחד לפי בחירתך
+ * **לפחות תכונה אחת מבוססת AI** - דוגמאות להלן
+ * ממשק משתמש (UI) שניתן להציג בפגישה (אפליקציית ווב, Notebook, או כל דבר שרץ)
+**תכונה מבוססת AI, בחר לפחות אחת:**
+ * **שאילתות בשפה טבעית** — אפשר למשתמש לשאול שאלות על הנתונים באנגלית פשוטה ("איזה צוות חרג מהתקציב החודש?")
+ * **יצירת תובנות אוטומטית** — שימוש ב-LLM כדי להציף חריגות או מגמות ("השימוש ב-GPT-4 קפץ פי 3 השבוע")
+ * **המלצות אופטימיזציה** — הצעה היכן לקצץ בעלויות או להחליף מודלים בהתבסס על דפוסי שימוש
+ * **סיווג חכם** — תיוג או סיווג אוטומטי של לוגי השימוש לפי מטרה, צוות או רמת פרודוקטיביות
+אתה מוזמן לחרוג מעבר לרשימה זו.
+**יש לך חופש מלא לבחור:**
+ * טכנולוגיות (Stack)
+ * באיזה LLM או API להשתמש עבור תכונת ה-AI
+ * מבנה נתונים, סכימה ומדדים
+ * כיצד להגדיר ולמדוד "ערך" לעומת עלות
+### פרזנטציה (30 דקות)
+נבקש ממך להוביל אותנו דרך אב-הטיפוס שלך ולענות על שאלות. אנו נעריך לפי:
+| קריטריון | מה אנחנו מחפשים |
+|---|---|
+| **הבנת הבעיה** | האם תפסת את מה שבאמת חשוב לעסק? |
+| **אינטגרציית AI** | האם תכונת ה-LLM שימושית באמת, או רק "מודבקת"? |
+| **עיצוב מדדים** | האם המדדים שבחרת משמעותיים וניתנים ליישום? |
+| **קוד עובד** | אב-טיפוס שאכן רץ |
+| **תקשורת** | האם אתה יכול להסביר את ההחלטות שלך ולהגיב לשאלות? |
+### שאלות הכנה
+אנא שלח לנו תשובות לשאלות אלו לפני המצגת:
+ 1. באילו מדדים בחרת, ומדוע?
+ 2. איזו תכונת AI בנית, ואיזו בעיה היא פותרת?
+ 3. מה היית עושה אחרת אילו היה לך שבוע עבודה נוסף?
+ 4. כיצד היית משיג נתונים אמיתיים ומבצע סקייל (Scale) לפתרון בסביבת פרודקשן?

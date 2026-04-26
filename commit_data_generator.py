@@ -44,6 +44,17 @@ AUTHORS = [
     ("Chen Azulay", "2", "Infrastructure")
 ]
 
+TEAM_PROJECTS = {
+    "Web": ["TraderPortal", "OpsConsole", "StrategyStudio"],
+    "Trading": ["SignalForge", "AlphaStream", "OrderFlow"],
+    "Infrastructure": ["LatencyGuard", "QuoteSync", "ExecutionMesh"],
+    "Growth": ["MarketPulse", "ClientSignals", "AcquisitionRadar"],
+    "Payments": ["SettlementGrid", "FeeReconcile", "TreasuryBridge"],
+    "Mobile": ["PocketTrader", "AlertStream", "WatchlistFlow"],
+    "Data": ["BacktestLab", "FeatureLake", "TickWarehouse"],
+    "DevOps": ["DeployRail", "HealthBeacon", "CompliancePipeline"]
+}
+
 START_DATE = datetime(2024, 1, 1)
 END_DATE = datetime(2025, 12, 31, 23, 59)
 
@@ -85,6 +96,10 @@ def random_commit_date(index):
     return random_date_between(START_DATE, END_DATE)
 
 
+def choose_project(team):
+    return random.choice(TEAM_PROJECTS[team])
+
+
 def generate_mock_data(num_commits=1000):
     data = {}
     all_hashes = []
@@ -117,6 +132,7 @@ def generate_mock_data(num_commits=1000):
         )))
 
         commit_hash = generate_commit_hash(f"{author}-{model}-{commit_date}-{i}")
+        project = choose_project(team)
         all_hashes.append(commit_hash)
         quality_map[commit_hash] = quality_score  # internal only
 
@@ -124,6 +140,7 @@ def generate_mock_data(num_commits=1000):
             "author": author,
             "authorSeniority": seniority,
             "team": team,
+            "project": project,
             "model": model,
             "commitDate": commit_date.isoformat() + "Z",
             "mergeDate": merge_date.isoformat() + "Z",
@@ -183,11 +200,9 @@ def add_commit_segments(commits, sprint_length_days=14):
         sprint_number = ((commit_date.date() - first_commit_date).days // sprint_length_days) + 1
         sprint_key = f"Sprint {sprint_number:02d}"
         quarter_key = f"{commit_date.year}-Q{((commit_date.month - 1) // 3) + 1}"
-        project_key = commit["team"]
 
         commits[commit_hash]["sprint"] = sprint_key
         commits[commit_hash]["quarter"] = quarter_key
-        commits[commit_hash]["project"] = project_key
 
     return commits
 

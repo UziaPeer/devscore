@@ -1,0 +1,38 @@
+
+
+### **PR-level metrics**
+
+1. **Code longevity** – how long the code remained unchanged before being modified
+2. **Number of dedicated bug-fix commits** related to this PR
+3. **Lead time to merge** – time from when the developer started working on the feature until it was merged
+4. **PR iterations** – number of revisions and number of review comments
+
+---
+
+### **Organization-level metrics**
+
+1. **Per sprint**
+
+   * Model usage distribution (percentage per model)
+   * Delivery time
+   * Model rating / performance score
+
+2. **Per project**
+
+   * Model usage distribution (percentage per model)
+   * Model rating / performance score
+
+3. **Per quarter**
+
+   * Model usage distribution (percentage per model)
+   * Model rating / performance score
+
+---
+
+### **Comparisons & insights**
+
+* Compare **per developer / per team** to identify which model provides the best outcomes for them (not just global model comparison)
+* Compare models **within the same system/domain only** (avoid cross-domain bias)
+* Segment comparisons by **seniority level**
+
+
