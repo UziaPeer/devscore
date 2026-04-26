@@ -166,7 +166,7 @@ def generate_mock_data(num_commits=1000):
     return data
 
 
-def generate_commit_groups(commits, sprint_length_days=14):
+def add_commit_segments(commits, sprint_length_days=14):
     sorted_commits = sorted(
         commits.items(),
         key=lambda item: item[1]["commitDate"]
@@ -174,12 +174,6 @@ def generate_commit_groups(commits, sprint_length_days=14):
     first_commit_date = datetime.fromisoformat(
         sorted_commits[0][1]["commitDate"].replace("Z", "")
     ).date()
-
-    groups = {
-        "sprints": {},
-        "quarter": {},
-        "projects": {}
-    }
 
     for commit_hash, commit in sorted_commits:
         commit_date = datetime.fromisoformat(
@@ -191,11 +185,11 @@ def generate_commit_groups(commits, sprint_length_days=14):
         quarter_key = f"{commit_date.year}-Q{((commit_date.month - 1) // 3) + 1}"
         project_key = commit["team"]
 
-        groups["sprints"].setdefault(sprint_key, []).append(commit_hash)
-        groups["quarter"].setdefault(quarter_key, []).append(commit_hash)
-        groups["projects"].setdefault(project_key, []).append(commit_hash)
+        commits[commit_hash]["sprint"] = sprint_key
+        commits[commit_hash]["quarter"] = quarter_key
+        commits[commit_hash]["project"] = project_key
 
-    return groups
+    return commits
 
 
 def write_json(path, data):
@@ -205,9 +199,8 @@ def write_json(path, data):
 
 if __name__ == "__main__":
     mock_data = generate_mock_data(num_commits=100)
-    grouped_commits = generate_commit_groups(mock_data)
+    mock_data = add_commit_segments(mock_data)
 
     write_json("mock_commits.json", mock_data)
-    write_json("mock_commits_grouped.json", grouped_commits)
 
-    print(json.dumps(grouped_commits, indent=2))
+    print(json.dumps(mock_data, indent=2))
