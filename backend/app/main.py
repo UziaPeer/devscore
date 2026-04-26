@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from functools import lru_cache
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .analytics import apply_filters, breakdown, load_enriched_commits, options, summarize
+from .analytics import COMMITS_PATH, apply_filters, breakdown, load_enriched_commits, options, summarize
 
 try:
     from openai import OpenAI
@@ -33,6 +34,13 @@ class QueryPayload(FilterPayload):
 class AIResponse(BaseModel):
     items: list[dict[str, Any]]
     model: str
+
+
+class DataSourceResponse(BaseModel):
+    filename: str
+    records: int
+    size_bytes: int
+    updated_at: str
 
 
 app = FastAPI(
@@ -109,9 +117,90 @@ def _run_ai_json(prompt: str, payload: dict[str, Any]) -> dict[str, Any]:
     return output
 
 
+def _validate_dataset_shape(payload: Any) -> dict[str, Any]:
+    required_keys = {
+        "author",
+        "authorSeniority",
+        "team",
+        "project",
+        "model",
+        "commitDate",
+        "mergeDate",
+        "overriddenByCommits",
+        "bugFixOverridesCount",
+        "revisionsBeforeMerge",
+        "commentsBeforeMerge",
+        "sprint",
+        "quarter",
+    }
+    if not isinstance(payload, dict) or not payload:
+        raise HTTPException(status_code=400, detail="Uploaded file must be a non-empty JSON object.")
+
+    for commit_hash, item in payload.items():
+        if not isinstance(commit_hash, str) or not commit_hash.strip():
+            raise HTTPException(status_code=400, detail="Each top-level key must be a commit hash string.")
+        if not isinstance(item, dict):
+            raise HTTPException(status_code=400, detail=f"Commit '{commit_hash}' must be a JSON object.")
+        missing = sorted(required_keys.difference(item.keys()))
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Commit '{commit_hash}' is missing required keys: {', '.join(missing)}",
+            )
+        if not isinstance(item.get("overriddenByCommits"), list):
+            raise HTTPException(status_code=400, detail=f"Commit '{commit_hash}' has invalid overriddenByCommits.")
+
+    return payload
+
+
+def _data_source_response() -> DataSourceResponse:
+    stat = COMMITS_PATH.stat()
+    return DataSourceResponse(
+        filename=COMMITS_PATH.name,
+        records=len(_all_rows()),
+        size_bytes=stat.st_size,
+        updated_at=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+    )
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/data/source", response_model=DataSourceResponse)
+def data_source() -> DataSourceResponse:
+    return _data_source_response()
+
+
+@app.post("/data/upload", response_model=DataSourceResponse)
+async def data_upload(file: UploadFile = File(...)) -> DataSourceResponse:
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Uploaded file has no name.")
+    if not file.filename.lower().endswith(".json"):
+        raise HTTPException(status_code=400, detail="Only JSON files are supported.")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    try:
+        payload = json.loads(content.decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid UTF-8 file: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}") from exc
+
+    validated = _validate_dataset_shape(payload)
+
+    try:
+        with COMMITS_PATH.open("w", encoding="utf-8") as handle:
+            json.dump(validated, handle, indent=2)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to store uploaded dataset: {exc}") from exc
+
+    _all_rows.cache_clear()
+    return _data_source_response()
 
 
 @app.get("/analytics/options")

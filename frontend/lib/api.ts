@@ -1,4 +1,4 @@
-import type { AIItem, BreakdownItem, Filters, OptionsPayload, Summary } from "./types";
+import type { AIItem, BreakdownItem, DataSourceInfo, Filters, OptionsPayload, Summary } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -47,4 +47,22 @@ export async function postAI(path: string, filters: Filters & { question?: strin
     throw new Error(text || `AI request failed with ${response.status}`);
   }
   return (await response.json()) as { items: AIItem[]; model: string };
+}
+
+export async function getDataSource(): Promise<DataSourceInfo> {
+  return fetchJson<DataSourceInfo>("/data/source");
+}
+
+export async function uploadDataSource(file: File): Promise<DataSourceInfo> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch(`${API_BASE}/data/upload`, {
+    method: "POST",
+    body: formData
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Upload failed with ${response.status}`);
+  }
+  return (await response.json()) as DataSourceInfo;
 }

@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Bot, ChartNoAxesCombined, Coins, Filter, Sparkles } from "lucide-react";
+import { Bot, ChartNoAxesCombined, Coins, FileUp, Filter, Sparkles } from "lucide-react";
 
-import { getBreakdown, getOptions, getSummary, postAI } from "../lib/api";
-import type { AIItem, BreakdownItem, Filters, OptionsPayload, Summary } from "../lib/types";
+import { getBreakdown, getDataSource, getOptions, getSummary, postAI, uploadDataSource } from "../lib/api";
+import type { AIItem, BreakdownItem, DataSourceInfo, Filters, OptionsPayload, Summary } from "../lib/types";
 
 const emptySummary: Summary = {
   total_commits: 0,
@@ -28,8 +28,29 @@ type AiPanelState = {
   error: string | null;
 };
 
-function Money(value: number): string {
+function money(value: number): string {
   return `$${value.toFixed(4)}`;
+}
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) {
+    return "N/A";
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function formatBytes(bytes: number | null | undefined): string {
+  if (!bytes || bytes < 0) {
+    return "N/A";
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 function SelectField({
@@ -99,6 +120,14 @@ function extractMessage(aiItem: AIItem): string {
 
 export function Dashboard() {
   const [filters, setFilters] = useState<Filters>({});
+  const [reloadTick, setReloadTick] = useState(0);
+  const [fileInputKey, setFileInputKey] = useState(0);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const [dataSource, setDataSource] = useState<DataSourceInfo | null>(null);
   const [options, setOptions] = useState<OptionsPayload>({
     teams: [],
     projects: [],
@@ -125,12 +154,15 @@ export function Dashboard() {
   });
 
   useEffect(() => {
-    getOptions()
-      .then(setOptions)
+    Promise.all([getOptions(), getDataSource()])
+      .then(([optionPayload, sourcePayload]) => {
+        setOptions(optionPayload);
+        setDataSource(sourcePayload);
+      })
       .catch((error) => {
-        setBackendError(`Backend options failed: ${String(error)}`);
+        setBackendError(`Backend setup failed: ${String(error)}`);
       });
-  }, []);
+  }, [reloadTick]);
 
   useEffect(() => {
     Promise.all([getSummary(filters), getBreakdown("model", filters), getBreakdown("quarter", filters), getBreakdown("project", filters)])
@@ -144,7 +176,7 @@ export function Dashboard() {
       .catch((error) => {
         setBackendError(`Backend analytics failed: ${String(error)}`);
       });
-  }, [filters]);
+  }, [filters, reloadTick]);
 
   const lineData = useMemo(() => toLineData(byQuarter), [byQuarter]);
 
@@ -173,6 +205,28 @@ export function Dashboard() {
         loading: false,
         error: String(error)
       }));
+    }
+  }
+
+  async function handleUpload() {
+    if (!uploadFile) {
+      setUploadError("Choose a JSON file first.");
+      return;
+    }
+    setUploadLoading(true);
+    setUploadError(null);
+    setUploadMessage(null);
+    try {
+      const source = await uploadDataSource(uploadFile);
+      setDataSource(source);
+      setUploadFile(null);
+      setFileInputKey((value) => value + 1);
+      setReloadTick((value) => value + 1);
+      setUploadMessage(`Uploaded ${source.filename}. Dashboard data refreshed.`);
+    } catch (error) {
+      setUploadError(String(error));
+    } finally {
+      setUploadLoading(false);
     }
   }
 
@@ -221,6 +275,52 @@ export function Dashboard() {
       )}
 
       <section className="panel" style={{ padding: 12, marginBottom: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>Data Source</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              Current file: <strong style={{ color: "var(--text)" }}>{dataSource?.filename ?? "N/A"}</strong>
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              Records: {dataSource?.records ?? 0} | Size: {formatBytes(dataSource?.size_bytes)} | Updated: {formatDate(dataSource?.updated_at)}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              key={fileInputKey}
+              type="file"
+              accept=".json,application/json"
+              onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
+              style={{ maxWidth: 240 }}
+            />
+            <button
+              type="button"
+              onClick={handleUpload}
+              disabled={uploadLoading}
+              style={{
+                borderRadius: 8,
+                border: "none",
+                backgroundColor: uploadLoading ? "#89cfa4" : "var(--brand)",
+                color: "white",
+                fontWeight: 700,
+                height: 36,
+                padding: "0 12px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                cursor: uploadLoading ? "not-allowed" : "pointer"
+              }}
+            >
+              <FileUp size={16} />
+              {uploadLoading ? "Uploading..." : "Upload & Replace"}
+            </button>
+          </div>
+        </div>
+        {uploadMessage && <div style={{ marginTop: 8, fontSize: 12, color: "var(--brand-dark)" }}>{uploadMessage}</div>}
+        {uploadError && <div style={{ marginTop: 8, fontSize: 12, color: "var(--danger)" }}>{uploadError}</div>}
+      </section>
+
+      <section className="panel" style={{ padding: 12, marginBottom: 12 }}>
         <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
           <Filter size={14} color="var(--text-muted)" />
           <strong style={{ fontSize: 13 }}>Filters</strong>
@@ -236,9 +336,9 @@ export function Dashboard() {
       </section>
 
       <section className="kpi-grid">
-        <KpiCard title="Estimated Spend" value={Money(summary.total_spend)} icon={<Coins size={18} />} />
+        <KpiCard title="Estimated Spend" value={money(summary.total_spend)} icon={<Coins size={18} />} />
         <KpiCard title="Performance Score" value={summary.avg_performance_score.toFixed(2)} icon={<ChartNoAxesCombined size={18} />} />
-        <KpiCard title="Cost / Performance Point" value={Money(summary.cost_per_performance_point)} icon={<Coins size={18} />} />
+        <KpiCard title="Cost / Performance Point" value={money(summary.cost_per_performance_point)} icon={<Coins size={18} />} />
         <KpiCard title="Best ROI Model" value={summary.best_model_by_roi ?? "N/A"} icon={<Bot size={18} />} />
       </section>
 
@@ -290,9 +390,9 @@ export function Dashboard() {
                 {byProject.slice(0, 12).map((item) => (
                   <tr key={item.value} style={{ borderBottom: "1px solid var(--border)" }}>
                     <td style={{ padding: 8, fontWeight: 600 }}>{item.value}</td>
-                    <td style={{ padding: 8, textAlign: "right" }}>{Money(item.estimated_spend)}</td>
+                    <td style={{ padding: 8, textAlign: "right" }}>{money(item.estimated_spend)}</td>
                     <td style={{ padding: 8, textAlign: "right" }}>{item.avg_performance_score.toFixed(2)}</td>
-                    <td style={{ padding: 8, textAlign: "right" }}>{Money(item.cost_per_performance_point)}</td>
+                    <td style={{ padding: 8, textAlign: "right" }}>{money(item.cost_per_performance_point)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -311,11 +411,7 @@ export function Dashboard() {
               style={{ resize: "vertical", border: "1px solid var(--border)", borderRadius: 8, padding: 8 }}
             />
           </label>
-          {aiState.error && (
-            <div style={{ color: "var(--danger)", fontSize: 12, marginBottom: 8 }}>
-              {aiState.error}
-            </div>
-          )}
+          {aiState.error && <div style={{ color: "var(--danger)", fontSize: 12, marginBottom: 8 }}>{aiState.error}</div>}
           <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
             {aiState.model ? `AI model: ${aiState.model}` : "Run AI Analysis to generate insights"}
           </div>

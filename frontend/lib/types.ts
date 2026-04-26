@@ -40,3 +40,10 @@ export type OptionsPayload = {
 };
 
 export type AIItem = Record<string, string | number | null>;
+
+export type DataSourceInfo = {
+  filename: string;
+  records: number;
+  size_bytes: number;
+  updated_at: string;
+};

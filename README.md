@@ -38,3 +38,8 @@ Optional API base URL:
 ```powershell
 $env:NEXT_PUBLIC_API_BASE_URL="http://127.0.0.1:8000"
 ```
+
+## Dataset Upload
+
+The dashboard includes a **Data Source** card showing the current JSON filename in use.
+You can upload a new JSON file there and it will replace `mock_commits.json` immediately.

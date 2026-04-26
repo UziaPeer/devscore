@@ -243,7 +243,7 @@ def write_json(path, data):
 
 
 if __name__ == "__main__":
-    mock_data = generate_mock_data(num_commits=100)
+    mock_data = generate_mock_data(num_commits=1000)
     mock_data = add_commit_segments(mock_data)
 
     write_json("mock_commits.json", mock_data)
