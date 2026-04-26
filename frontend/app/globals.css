@@ -1,12 +1,35 @@
+@font-face {
+  font-family: "eToro Compressed";
+  src: url("https://marketing.etorostatic.com/cache1/fonts/etoro/eToro-VF-v0.8.ttf") format("truetype-variations");
+  font-weight: 100 900;
+  font-stretch: 0%;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "eToro";
+  src: url("https://marketing.etorostatic.com/cache1/fonts/etoro/eToro-VF-v0.8.ttf") format("truetype-variations");
+  font-weight: 100 900;
+  font-stretch: 0% 100%;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "eToro Arrows";
+  src: local("Arial");
+  unicode-range: U+2190-2199;
+  font-display: swap;
+}
+
 :root {
-  --bg: #f5f7f6;
+  --bg: #f7f8fb;
   --surface: #ffffff;
-  --surface-muted: #f0f4f2;
-  --text: #1a211c;
-  --text-muted: #5f6a63;
-  --brand: #1db954;
+  --surface-muted: #f2f4f8;
+  --text: #000021;
+  --text-muted: #66667a;
+  --brand: #13c636;
   --brand-dark: #119542;
-  --border: #d8e1dc;
+  --border: #e3e7f0;
   --danger: #d64141;
 }
 
@@ -14,13 +37,20 @@
   box-sizing: border-box;
 }
 
+input[type="checkbox"] {
+  accent-color: var(--brand);
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
-  font-family: var(--font-manrope), "Segoe UI", sans-serif;
-  background: radial-gradient(circle at top right, #e8f8ee 0%, #f5f7f6 45%, #f3f6f4 100%);
+  font-family: "eToro Arrows", "eToro", sans-serif;
+  background: linear-gradient(180deg, #f9fbff 0%, #f7f8fb 100%);
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 a {
@@ -28,17 +58,22 @@ a {
   text-decoration: none;
 }
 
+h1 {
+  font-family: "eToro Compressed", sans-serif;
+  letter-spacing: 0;
+}
+
 .page-shell {
   max-width: 1320px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 22px;
 }
 
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 6px 20px rgba(24, 38, 29, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 33, 0.05);
 }
 
 .kpi-grid {

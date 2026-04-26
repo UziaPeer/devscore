@@ -31,9 +31,27 @@ const MODEL_BAR_COLORS: Record<string, string> = {
   "gpt-35": "#00A67E"
 };
 
+const MODEL_LOGO_URLS: Record<string, string> = {
+  claude: "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/anthropic.svg",
+  gemini: "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/googlegemini.svg",
+  codellama: "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/meta.svg",
+  "code-llama": "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/meta.svg",
+  llama: "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/meta.svg",
+  "gpt-4": "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/openai.svg",
+  gpt4: "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/openai.svg",
+  "gpt-3.5": "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/openai.svg",
+  "gpt3.5": "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/openai.svg",
+  "gpt-35": "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/openai.svg"
+};
+
 function getModelBarColor(modelName: string): string {
   const normalized = modelName.trim().toLowerCase();
   return MODEL_BAR_COLORS[normalized] ?? "var(--brand)";
+}
+
+function getModelLogoUrl(modelName: string): string | null {
+  const normalized = modelName.trim().toLowerCase();
+  return MODEL_LOGO_URLS[normalized] ?? null;
 }
 
 type AiPanelState = {
@@ -221,6 +239,28 @@ function KpiCard({
 function extractMessage(aiItem: AIItem): string {
   const text = aiItem.finding ?? aiItem.answer ?? aiItem.rationale ?? aiItem.reason ?? aiItem.action;
   return typeof text === "string" ? text : JSON.stringify(aiItem);
+}
+
+function ModelAxisTick({
+  x = 0,
+  y = 0,
+  payload
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value?: string };
+}) {
+  const label = payload?.value ?? "";
+  const logoUrl = getModelLogoUrl(label);
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={14} textAnchor="middle" fill="var(--text-muted)" fontSize={11}>
+        {label}
+      </text>
+      {logoUrl && <image href={logoUrl} x={-8} y={20} width={16} height={16} />}
+    </g>
+  );
 }
 
 export function Dashboard() {
@@ -534,7 +574,7 @@ export function Dashboard() {
             style={{
               borderRadius: 8,
               border: "none",
-              backgroundColor: uploadLoading ? "#89cfa4" : "var(--brand)",
+              backgroundColor: uploadLoading ? "#9adfb3" : "var(--brand)",
               color: "white",
               fontWeight: 700,
               height: 34,
@@ -614,7 +654,7 @@ export function Dashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={byModel}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#dfe7e2" />
-                <XAxis dataKey="value" tick={{ fontSize: 11 }} />
+                <XAxis dataKey="value" tick={<ModelAxisTick />} interval={0} height={44} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Bar
@@ -638,7 +678,7 @@ export function Dashboard() {
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Line type="monotone" dataKey="estimated_spend" stroke="#119542" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="estimated_spend" stroke="var(--brand-dark)" strokeWidth={2} dot={{ r: 2 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
