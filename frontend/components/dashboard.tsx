@@ -229,6 +229,7 @@ export function Dashboard() {
   const [byModel, setByModel] = useState<BreakdownItem[]>([]);
   const [trend, setTrend] = useState<TrendPayload>({ mode: "quarterly", title: "Quarterly Spend Trend", points: [] });
   const [byProject, setByProject] = useState<BreakdownItem[]>([]);
+  const [modelChartTab, setModelChartTab] = useState<"performance" | "spend">("spend");
   const [backendError, setBackendError] = useState<string | null>(null);
   const [query, setQuery] = useState("Which project has the worst cost per performance point?");
   const [aiState, setAiState] = useState<AiPanelState>({
@@ -544,7 +545,53 @@ export function Dashboard() {
 
       <section className="chart-grid">
         <article className="panel" style={{ padding: 14, minHeight: 280 }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>Estimated Spend by Model</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <h3 style={{ margin: 0, fontSize: 16 }}>
+              {modelChartTab === "performance" ? "Performance Score by Model" : "Estimated Spend by Model"}
+            </h3>
+            <div
+              style={{
+                display: "inline-flex",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                overflow: "hidden",
+                backgroundColor: "var(--surface-muted)"
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setModelChartTab("performance")}
+                style={{
+                  border: "none",
+                  height: 28,
+                  padding: "0 10px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  backgroundColor: modelChartTab === "performance" ? "var(--surface)" : "transparent",
+                  color: modelChartTab === "performance" ? "var(--text)" : "var(--text-muted)"
+                }}
+              >
+                Performance
+              </button>
+              <button
+                type="button"
+                onClick={() => setModelChartTab("spend")}
+                style={{
+                  border: "none",
+                  height: 28,
+                  padding: "0 10px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  backgroundColor: modelChartTab === "spend" ? "var(--surface)" : "transparent",
+                  color: modelChartTab === "spend" ? "var(--text)" : "var(--text-muted)"
+                }}
+              >
+                Spend
+              </button>
+            </div>
+          </div>
           <div style={{ height: 240 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={byModel}>
@@ -552,7 +599,11 @@ export function Dashboard() {
                 <XAxis dataKey="value" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Bar dataKey="estimated_spend" fill="#1db954" radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey={modelChartTab === "performance" ? "avg_performance_score" : "estimated_spend"}
+                  fill={modelChartTab === "performance" ? "#119542" : "#1db954"}
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
