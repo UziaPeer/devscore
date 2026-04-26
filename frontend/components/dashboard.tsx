@@ -32,16 +32,16 @@ const MODEL_BAR_COLORS: Record<string, string> = {
 };
 
 const MODEL_LOGO_URLS: Record<string, string> = {
-  claude: "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/anthropic.svg",
-  gemini: "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/googlegemini.svg",
-  codellama: "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/meta.svg",
-  "code-llama": "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/meta.svg",
-  llama: "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/meta.svg",
-  "gpt-4": "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/openai.svg",
-  gpt4: "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/openai.svg",
-  "gpt-3.5": "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/openai.svg",
-  "gpt3.5": "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/openai.svg",
-  "gpt-35": "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/openai.svg"
+  claude: "https://upload.wikimedia.org/wikipedia/commons/b/b0/Claude_AI_symbol.svg",
+  gemini: "https://upload.wikimedia.org/wikipedia/commons/1/1d/Google_Gemini_icon_2025.svg",
+  codellama: "https://upload.wikimedia.org/wikipedia/commons/d/d0/Meta_Platforms_logo.svg",
+  "code-llama": "https://upload.wikimedia.org/wikipedia/commons/d/d0/Meta_Platforms_logo.svg",
+  llama: "https://upload.wikimedia.org/wikipedia/commons/d/d0/Meta_Platforms_logo.svg",
+  "gpt-4": "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg",
+  gpt4: "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg",
+  "gpt-3.5": "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg",
+  "gpt3.5": "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg",
+  "gpt-35": "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg"
 };
 
 function getModelBarColor(modelName: string): string {
@@ -252,13 +252,14 @@ function ModelAxisTick({
 }) {
   const label = payload?.value ?? "";
   const logoUrl = getModelLogoUrl(label);
+  const logoSize = 20;
 
   return (
     <g transform={`translate(${x},${y})`}>
       <text x={0} y={14} textAnchor="middle" fill="var(--text-muted)" fontSize={11}>
         {label}
       </text>
-      {logoUrl && <image href={logoUrl} x={-8} y={20} width={16} height={16} />}
+      {logoUrl && <image href={logoUrl} x={-logoSize / 2} y={20} width={logoSize} height={logoSize} />}
     </g>
   );
 }
@@ -654,7 +655,7 @@ export function Dashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={byModel}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#dfe7e2" />
-                <XAxis dataKey="value" tick={<ModelAxisTick />} interval={0} height={44} />
+                <XAxis dataKey="value" tick={<ModelAxisTick />} interval={0} height={52} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Bar
