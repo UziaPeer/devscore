@@ -1,5 +1,6 @@
 __pycache__/
 *.py[cod]
 backend/.venv/
+backend/.env
 frontend/node_modules/
 frontend/.next/

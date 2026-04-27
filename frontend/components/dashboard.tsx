@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Bot, ChartNoAxesCombined, ChevronDown, Coins, FileUp, Filter, Sparkles } from "lucide-react";
+import { Bot, ChartNoAxesCombined, ChevronDown, Coins, FileUp, Filter, MessageSquareText, Sparkles } from "lucide-react";
 
 import { getBreakdown, getDataSource, getOptions, getSummary, getTrend, postAI, uploadDataSource } from "../lib/api";
 import type { AIItem, BreakdownItem, DataSourceInfo, Filters, OptionsPayload, Summary, TrendPayload } from "../lib/types";
@@ -300,6 +300,7 @@ export function Dashboard() {
     loading: false,
     error: null
   });
+  const [activeAiTab, setActiveAiTab] = useState<"insights" | "recommendations" | "queryResults" | "categories">("insights");
 
   useEffect(() => {
     Promise.all([getOptions(), getDataSource()])
@@ -452,7 +453,7 @@ export function Dashboard() {
         className="panel"
         style={{
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent: "flex-start",
           alignItems: "center",
           padding: "16px 20px",
           marginBottom: 12
@@ -462,26 +463,6 @@ export function Dashboard() {
           <div style={{ fontSize: 13, color: "var(--brand-dark)", fontWeight: 800 }}>DevScore</div>
           <h1 style={{ margin: "4px 0 0", fontSize: 24 }}>AI Cost & PR Outcome Intelligence</h1>
         </div>
-        <button
-          type="button"
-          onClick={runAiActions}
-          style={{
-            borderRadius: 8,
-            border: "none",
-            backgroundColor: "var(--brand)",
-            color: "white",
-            fontWeight: 700,
-            height: 38,
-            padding: "0 14px",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            cursor: "pointer"
-          }}
-        >
-          <Sparkles size={16} />
-          {aiState.loading ? "Running AI..." : "Run AI Analysis"}
-        </button>
       </section>
 
       {backendError && (
@@ -695,10 +676,148 @@ export function Dashboard() {
       </section>
 
       <section className="table-grid">
+        <article className="panel" style={{ padding: 0, overflow: "hidden", minHeight: 520 }}>
+          <div
+            style={{
+              padding: "16px 16px 14px",
+              background:
+                "linear-gradient(120deg, rgba(19, 198, 54, 0.18) 0%, rgba(19, 198, 54, 0.08) 45%, rgba(255, 255, 255, 0.95) 100%)",
+              borderBottom: "1px solid var(--border)"
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18 }}>AI Strategy Studio</h3>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                  {aiState.model ? `Model: ${aiState.model}` : "Generate insights, recommendations and Q&A answers"}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={runAiActions}
+                style={{
+                  borderRadius: 8,
+                  border: "none",
+                  backgroundColor: "var(--brand)",
+                  color: "white",
+                  fontWeight: 700,
+                  height: 38,
+                  padding: "0 14px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                <Sparkles size={16} />
+                {aiState.loading ? "Running AI..." : "Run AI Analysis"}
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)", borderRadius: 999, padding: "4px 10px", fontSize: 12 }}>
+                Insights: {aiState.insights.length}
+              </div>
+              <div style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)", borderRadius: 999, padding: "4px 10px", fontSize: 12 }}>
+                Recommendations: {aiState.recommendations.length}
+              </div>
+              <div style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)", borderRadius: 999, padding: "4px 10px", fontSize: 12 }}>
+                Q&A: {aiState.queryResults.length}
+              </div>
+              <div style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)", borderRadius: 999, padding: "4px 10px", fontSize: 12 }}>
+                Categories: {aiState.categories.length}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: 14, display: "grid", gap: 12 }}>
+            <label style={{ display: "grid", gap: 6 }}>
+              <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <MessageSquareText size={14} /> Natural Language Question
+              </span>
+              <textarea
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                rows={3}
+                style={{ resize: "vertical", border: "1px solid var(--border)", borderRadius: 8, padding: 10, backgroundColor: "var(--surface)" }}
+              />
+            </label>
+
+            {aiState.error && (
+              <div style={{ color: "var(--danger)", fontSize: 12, border: "1px solid #f2c9c9", backgroundColor: "#fff4f4", borderRadius: 8, padding: 8 }}>
+                {aiState.error}
+              </div>
+            )}
+
+            <div style={{ display: "inline-flex", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", width: "fit-content" }}>
+              {[
+                { key: "insights", label: "Insights", count: aiState.insights.length },
+                { key: "recommendations", label: "Recommendations", count: aiState.recommendations.length },
+                { key: "queryResults", label: "Q&A", count: aiState.queryResults.length },
+                { key: "categories", label: "Categories", count: aiState.categories.length }
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveAiTab(tab.key as "insights" | "recommendations" | "queryResults" | "categories")}
+                  style={{
+                    border: "none",
+                    backgroundColor: activeAiTab === tab.key ? "var(--brand)" : "var(--surface)",
+                    color: activeAiTab === tab.key ? "white" : "var(--text)",
+                    height: 32,
+                    padding: "0 10px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer"
+                  }}
+                >
+                  {tab.label} ({tab.count})
+                </button>
+              ))}
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gap: 8,
+                minHeight: 240,
+                maxHeight: 320,
+                overflow: "auto",
+                border: "1px solid var(--border)",
+                borderRadius: 10,
+                padding: 10,
+                backgroundColor: "var(--surface-muted)"
+              }}
+            >
+              {(aiState[activeAiTab] as AIItem[]).length === 0 ? (
+                <div style={{ fontSize: 12, color: "var(--text-muted)", padding: 8 }}>
+                  No items yet for this section. Run AI Analysis to generate new results.
+                </div>
+              ) : (
+                (aiState[activeAiTab] as AIItem[]).map((item, index) => (
+                  <div
+                    key={`${activeAiTab}-${index}`}
+                    style={{
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      padding: "10px 10px",
+                      fontSize: 12,
+                      backgroundColor: "var(--surface)",
+                      boxShadow: "0 1px 4px rgba(0, 0, 33, 0.05)"
+                    }}
+                  >
+                    {extractMessage(item)}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </article>
+
         <article className="panel" style={{ padding: 14 }}>
           <h3 style={{ margin: "0 0 10px", fontSize: 16 }}>Project Comparison</h3>
-          <div style={{ overflow: "auto", maxHeight: 320 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <div style={{ overflow: "auto", maxHeight: 420 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
                 <tr style={{ backgroundColor: "var(--surface-muted)" }}>
                   <th style={{ textAlign: "left", padding: 8 }}>Project</th>
@@ -708,7 +827,7 @@ export function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {byProject.slice(0, 12).map((item) => (
+                {byProject.slice(0, 8).map((item) => (
                   <tr key={item.value} style={{ borderBottom: "1px solid var(--border)" }}>
                     <td style={{ padding: 8, fontWeight: 600 }}>{item.value}</td>
                     <td style={{ padding: 8, textAlign: "right" }}>{money(item.estimated_spend)}</td>
@@ -718,30 +837,6 @@ export function Dashboard() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </article>
-
-        <article className="panel" style={{ padding: 14 }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: 16 }}>AI Panel</h3>
-          <label style={{ display: "grid", gap: 6, marginBottom: 10 }}>
-            <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>Natural Language Question</span>
-            <textarea
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              rows={3}
-              style={{ resize: "vertical", border: "1px solid var(--border)", borderRadius: 8, padding: 8 }}
-            />
-          </label>
-          {aiState.error && <div style={{ color: "var(--danger)", fontSize: 12, marginBottom: 8 }}>{aiState.error}</div>}
-          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
-            {aiState.model ? `AI model: ${aiState.model}` : "Run AI Analysis to generate insights"}
-          </div>
-          <div style={{ display: "grid", gap: 8, maxHeight: 250, overflow: "auto" }}>
-            {[...aiState.insights, ...aiState.recommendations, ...aiState.queryResults, ...aiState.categories].slice(0, 8).map((item, index) => (
-              <div key={index} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 8, fontSize: 12 }}>
-                {extractMessage(item)}
-              </div>
-            ))}
           </div>
         </article>
       </section>

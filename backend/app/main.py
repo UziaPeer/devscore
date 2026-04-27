@@ -4,10 +4,12 @@ import json
 import os
 from datetime import datetime, timezone
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 from .analytics import COMMITS_PATH, apply_filters, breakdown, load_enriched_commits, options, spend_trend, summarize
@@ -16,6 +18,9 @@ try:
     from openai import OpenAI
 except Exception:  # pragma: no cover
     OpenAI = None
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(ROOT_DIR / "backend" / ".env")
 
 
 class FilterPayload(BaseModel):
