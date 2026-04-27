@@ -25,6 +25,11 @@ export type BreakdownItem = {
   usage_pct: number;
   estimated_spend: number;
   avg_performance_score: number;
+  avg_longevity_score: number;
+  avg_bug_fix_score: number;
+  avg_lead_time_score: number;
+  avg_iterations_score: number;
+  roi_score: number;
   avg_lead_time_hours: number;
   avg_cost_per_commit: number;
   cost_per_performance_point: number;

@@ -131,8 +131,13 @@ def load_enriched_commits() -> list[dict[str, Any]]:
             + WEIGHTS["lead_time"] * lead_scores[index]
             + WEIGHTS["iterations"] * iteration_scores[index]
         )
+        item["longevity_score"] = round(longevity_scores[index], 2)
+        item["bug_fix_score"] = round(bug_fix_scores[index], 2)
+        item["lead_time_score"] = round(lead_scores[index], 2)
+        item["iterations_score"] = round(iteration_scores[index], 2)
         item["performance_score"] = round(performance_score, 2)
         item["cost_performance_point"] = round(item["estimated_cost"] / max(performance_score, 1.0), 6)
+        item["roi_score"] = round(performance_score / max(item["estimated_cost"], 0.000001), 2)
 
     return commits
 
@@ -224,6 +229,11 @@ def breakdown(rows: list[dict[str, Any]], dimension: str) -> list[dict[str, Any]
         commits = len(group_rows)
         spend = sum(item["estimated_cost"] for item in group_rows)
         performance = sum(item["performance_score"] for item in group_rows)
+        longevity_score = sum(item["longevity_score"] for item in group_rows) / commits
+        bug_fix_score = sum(item["bug_fix_score"] for item in group_rows) / commits
+        lead_time_score = sum(item["lead_time_score"] for item in group_rows) / commits
+        iterations_score = sum(item["iterations_score"] for item in group_rows) / commits
+        roi_score = performance / max(spend, 0.000001)
         response.append(
             {
                 "dimension": dimension,
@@ -232,6 +242,11 @@ def breakdown(rows: list[dict[str, Any]], dimension: str) -> list[dict[str, Any]
                 "usage_pct": round((commits / total_commits) * 100.0, 2),
                 "estimated_spend": round(spend, 4),
                 "avg_performance_score": round(performance / commits, 2),
+                "avg_longevity_score": round(longevity_score, 2),
+                "avg_bug_fix_score": round(bug_fix_score, 2),
+                "avg_lead_time_score": round(lead_time_score, 2),
+                "avg_iterations_score": round(iterations_score, 2),
+                "roi_score": round(roi_score, 2),
                 "avg_lead_time_hours": round(sum(item["lead_time_hours"] for item in group_rows) / commits, 2),
                 "avg_cost_per_commit": round(spend / commits, 6),
                 "cost_per_performance_point": round(spend / max(performance, 1.0), 6),

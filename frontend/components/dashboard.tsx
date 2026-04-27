@@ -18,6 +18,92 @@ const emptySummary: Summary = {
   best_model_by_roi: null
 };
 
+type ModelMetricTab =
+  | "longevity"
+  | "bugfix"
+  | "leadtime"
+  | "iterations"
+  | "cost"
+  | "performance"
+  | "roi";
+
+const MODEL_METRIC_CONFIG: Record<
+  ModelMetricTab,
+  {
+    label: string;
+    title: string;
+    dataKey:
+      | "avg_longevity_score"
+      | "avg_bug_fix_score"
+      | "avg_lead_time_score"
+      | "avg_iterations_score"
+      | "estimated_spend"
+      | "avg_performance_score"
+      | "roi_score";
+    higherIsBetter: boolean;
+    yFormatter?: (value: number) => string;
+    tooltip: string;
+  }
+> = {
+  longevity: {
+    label: "Longevity",
+    title: "Longevity Score by Model",
+    dataKey: "avg_longevity_score",
+    higherIsBetter: true,
+    tooltip:
+      "Code longevity: how long code remains unchanged before override. Higher is better."
+  },
+  bugfix: {
+    label: "Bug Fix",
+    title: "Bug Fix Score by Model",
+    dataKey: "avg_bug_fix_score",
+    higherIsBetter: true,
+    tooltip:
+      "Based on dedicated bug-fix commits (bugFixOverridesCount). Lower raw bug-fix count is better."
+  },
+  leadtime: {
+    label: "Lead Time",
+    title: "Lead Time Score by Model",
+    dataKey: "avg_lead_time_score",
+    higherIsBetter: true,
+    tooltip:
+      "Based on mergeDate - commitDate. Lower raw lead time is better."
+  },
+  iterations: {
+    label: "Iterations",
+    title: "Iterations Score by Model",
+    dataKey: "avg_iterations_score",
+    higherIsBetter: true,
+    tooltip:
+      "Based on revisionsBeforeMerge + commentsBeforeMerge/4. Lower raw iterations is better."
+  },
+  cost: {
+    label: "Cost",
+    title: "Estimated Cost by Model",
+    dataKey: "estimated_spend",
+    higherIsBetter: false,
+    yFormatter: (value) => `$${value.toFixed(3)}`,
+    tooltip:
+      "Estimated cost from token usage and pricing.json. Lower cost is better."
+  },
+  performance: {
+    label: "Performance",
+    title: "Performance Score by Model",
+    dataKey: "avg_performance_score",
+    higherIsBetter: true,
+    tooltip:
+      "Weighted score: 0.35*Longevity + 0.30*BugFix + 0.20*LeadTime + 0.15*Iterations. Higher is better."
+  },
+  roi: {
+    label: "ROI",
+    title: "ROI by Model",
+    dataKey: "roi_score",
+    higherIsBetter: true,
+    tooltip:
+      "Return on investment proxy = total performance / total spend. Higher is better."
+  }
+};
+
 const MODEL_BAR_COLORS: Record<string, string> = {
   claude: "#DE7356",
   gemini: "#4796E3",
@@ -288,7 +374,7 @@ export function Dashboard() {
   const [byModel, setByModel] = useState<BreakdownItem[]>([]);
   const [trend, setTrend] = useState<TrendPayload>({ mode: "quarterly", title: "Quarterly Spend Trend", points: [] });
   const [byProject, setByProject] = useState<BreakdownItem[]>([]);
-  const [modelChartTab, setModelChartTab] = useState<"performance" | "spend">("spend");
+  const [modelChartTab, setModelChartTab] = useState<ModelMetricTab>("roi");
   const [backendError, setBackendError] = useState<string | null>(null);
   const [query, setQuery] = useState("Which project has the worst cost per performance point?");
   const [aiState, setAiState] = useState<AiPanelState>({
@@ -328,6 +414,16 @@ export function Dashboard() {
   }, [filters, reloadTick]);
 
   const lineData = useMemo(() => trend.points, [trend.points]);
+  const modelChartConfig = MODEL_METRIC_CONFIG[modelChartTab];
+  const sortedModelData = useMemo(() => {
+    const dataKey = modelChartConfig.dataKey;
+    const direction = modelChartConfig.higherIsBetter ? -1 : 1;
+    return [...byModel].sort((left, right) => {
+      const leftValue = Number(left[dataKey]);
+      const rightValue = Number(right[dataKey]);
+      return (leftValue - rightValue) * direction;
+    });
+  }, [byModel, modelChartConfig.dataKey, modelChartConfig.higherIsBetter]);
   const trendTitle = useMemo(() => {
     if (trend.title.includes("Spend & Performance")) {
       return trend.title;
@@ -592,64 +688,67 @@ export function Dashboard() {
       <section className="chart-grid">
         <article className="panel" style={{ padding: 14, minHeight: 280 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <h3 style={{ margin: 0, fontSize: 16 }}>
-              {modelChartTab === "performance" ? "Performance Score by Model" : "Estimated Spend by Model"}
-            </h3>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <h3 style={{ margin: 0, fontSize: 16 }}>{modelChartConfig.title}</h3>
+              <span
+                title={modelChartConfig.tooltip}
+                style={{
+                  fontSize: 12,
+                  lineHeight: "18px",
+                  width: 18,
+                  height: 18,
+                  borderRadius: 999,
+                  border: "1px solid var(--border)",
+                  textAlign: "center",
+                  color: "var(--text-muted)",
+                  cursor: "help",
+                  userSelect: "none"
+                }}
+              >
+                ⓘ
+              </span>
+            </div>
             <div
               style={{
                 display: "inline-flex",
                 border: "1px solid var(--border)",
                 borderRadius: 8,
                 overflow: "hidden",
-                backgroundColor: "var(--surface-muted)"
+                backgroundColor: "var(--surface-muted)",
+                flexWrap: "wrap",
+                justifyContent: "flex-end"
               }}
             >
-              <button
-                type="button"
-                onClick={() => setModelChartTab("performance")}
-                style={{
-                  border: "none",
-                  height: 28,
-                  padding: "0 10px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  backgroundColor: modelChartTab === "performance" ? "var(--surface)" : "transparent",
-                  color: modelChartTab === "performance" ? "var(--text)" : "var(--text-muted)"
-                }}
-              >
-                Performance
-              </button>
-              <button
-                type="button"
-                onClick={() => setModelChartTab("spend")}
-                style={{
-                  border: "none",
-                  height: 28,
-                  padding: "0 10px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  backgroundColor: modelChartTab === "spend" ? "var(--surface)" : "transparent",
-                  color: modelChartTab === "spend" ? "var(--text)" : "var(--text-muted)"
-                }}
-              >
-                Spend
-              </button>
+              {(Object.keys(MODEL_METRIC_CONFIG) as ModelMetricTab[]).map((tabKey) => (
+                <button
+                  key={tabKey}
+                  type="button"
+                  onClick={() => setModelChartTab(tabKey)}
+                  style={{
+                    border: "none",
+                    height: 28,
+                    padding: "0 10px",
+                    fontSize: 12,
+                    fontWeight: tabKey === "roi" ? 800 : 700,
+                    cursor: "pointer",
+                    backgroundColor: modelChartTab === tabKey ? "var(--surface)" : "transparent",
+                    color: modelChartTab === tabKey ? "var(--text)" : "var(--text-muted)"
+                  }}
+                >
+                  {MODEL_METRIC_CONFIG[tabKey].label}
+                </button>
+              ))}
             </div>
           </div>
           <div style={{ height: 240 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={byModel}>
+              <BarChart data={sortedModelData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#dfe7e2" />
                 <XAxis dataKey="value" tick={<ModelAxisTick />} interval={0} height={52} />
-                <YAxis tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={modelChartConfig.yFormatter} />
                 <Tooltip />
-                <Bar
-                  dataKey={modelChartTab === "performance" ? "avg_performance_score" : "estimated_spend"}
-                  radius={[4, 4, 0, 0]}
-                >
-                  {byModel.map((item) => (
+                <Bar dataKey={modelChartConfig.dataKey} radius={[4, 4, 0, 0]}>
+                  {sortedModelData.map((item) => (
                     <Cell key={`model-bar-${item.value}`} fill={getModelBarColor(item.value)} />
                   ))}
                 </Bar>
