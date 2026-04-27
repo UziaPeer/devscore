@@ -46,7 +46,7 @@ body {
   margin: 0;
   padding: 0;
   font-family: "eToro Arrows", "eToro", sans-serif;
-  background: linear-gradient(180deg, #f9fbff 0%, #f7f8fb 100%);
+  background: linear-gradient(180deg, rgba(19, 198, 54, 0.06) 0%, rgba(19, 198, 54, 0.025) 24%, #f7f8fb 62%, #f7f8fb 100%);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
