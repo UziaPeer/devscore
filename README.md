@@ -108,3 +108,56 @@ Because the backend now loads `backend/.env`, you no longer need to type `OPENAI
 
 The dashboard includes a **Data Source** card showing the current JSON filename in use.
 You can upload a new JSON file there and it will replace `mock_commits.json` immediately.
+
+
+## performance calculation
+
+
+**Model Performance Score** is currently calculated as:
+
+```
+score = 0.35*LongevityScore + 0.30*BugFixScore + 0.20*LeadTimeScore + 0.15*IterationsScore
+```
+
+Each component is normalized to a 0–100 range based on the currently loaded dataset:
+
+**LongevityScore:**
+Higher = better.
+Based on `longevity_days` (time until the first override; if there is no override, then up to a 60-day horizon after the last commit in the data).
+
+**BugFixScore:**
+Lower = better.
+Based on `bugFixOverridesCount`.
+
+**LeadTimeScore:**
+Lower = better.
+Based on `mergeDate - commitDate` in hours.
+
+**IterationsScore:**
+Lower = better.
+Based on:
+
+```
+iterations_raw = revisionsBeforeMerge + commentsBeforeMerge / 4
+```
+
+---
+
+Additionally, the following is calculated:
+
+```
+cost_performance_point = estimated_cost / max(score, 1.0)
+```
+
+And the cost (`estimated_cost`) is:
+
+```
+(input_tokens / 1e6) * input_price + (output_tokens / 1e6) * output_price
+```
+
+Where `input_tokens` and `output_tokens` are estimated from signals such as:
+`revisions`, `comments`, `overrides`, `bugFixes`, and the prices are taken from `pricing.json`.
+
+---
+
+The actual implementation is in `analytics.py`.
