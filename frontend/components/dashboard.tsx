@@ -690,23 +690,30 @@ export function Dashboard() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <h3 style={{ margin: 0, fontSize: 16 }}>{modelChartConfig.title}</h3>
-              <span
-                title={modelChartConfig.tooltip}
-                style={{
-                  fontSize: 12,
-                  lineHeight: "18px",
-                  width: 18,
-                  height: 18,
-                  borderRadius: 999,
-                  border: "1px solid var(--border)",
-                  textAlign: "center",
-                  color: "var(--text-muted)",
-                  cursor: "help",
-                  userSelect: "none"
-                }}
-              >
-                ⓘ
-              </span>
+              <div className="metric-info-wrap">
+                <span
+                  style={{
+                    fontSize: 12,
+                    lineHeight: "18px",
+                    width: 18,
+                    height: 18,
+                    borderRadius: 999,
+                    border: "1px solid var(--border)",
+                    textAlign: "center",
+                    color: "var(--text-muted)",
+                    cursor: "help",
+                    userSelect: "none",
+                    display: "inline-block",
+                    backgroundColor: "var(--surface)"
+                  }}
+                >
+                  ⓘ
+                </span>
+                <div className="metric-info-tooltip" role="tooltip" aria-label={modelChartConfig.title}>
+                  <div className="metric-info-title">{modelChartConfig.title}</div>
+                  <div className="metric-info-body">{modelChartConfig.tooltip}</div>
+                </div>
+              </div>
             </div>
             <div
               style={{
@@ -743,7 +750,14 @@ export function Dashboard() {
           <div style={{ height: 240 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={sortedModelData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#dfe7e2" />
+                <defs>
+                  <linearGradient id="model-plot-fade" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="rgba(19, 198, 54, 0.14)" />
+                    <stop offset="50%" stopColor="rgba(19, 198, 54, 0.045)" />
+                    <stop offset="100%" stopColor="rgba(19, 198, 54, 0)" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#dfe7e2" fill="url(#model-plot-fade)" />
                 <XAxis dataKey="value" tick={<ModelAxisTick />} interval={0} height={52} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={modelChartConfig.yFormatter} />
                 <Tooltip />
