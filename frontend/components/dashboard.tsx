@@ -327,6 +327,12 @@ export function Dashboard() {
   }, [filters, reloadTick]);
 
   const lineData = useMemo(() => trend.points, [trend.points]);
+  const trendTitle = useMemo(() => {
+    if (trend.title.includes("Spend & Performance")) {
+      return trend.title;
+    }
+    return trend.title.replace("Spend", "Spend & Performance");
+  }, [trend.title]);
   const projectOptions = useMemo(() => {
     const selectedTeams = filters.team ?? [];
     if (selectedTeams.length === 0) {
@@ -671,15 +677,17 @@ export function Dashboard() {
           </div>
         </article>
         <article className="panel" style={{ padding: 14, minHeight: 280 }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>{trend.title}</h3>
+          <h3 style={{ margin: 0, fontSize: 16 }}>{trendTitle}</h3>
           <div style={{ height: 240 }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={lineData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#dfe7e2" />
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="spend" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="performance" orientation="right" domain={[0, 100]} tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Line type="monotone" dataKey="estimated_spend" stroke="var(--brand-dark)" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="estimated_spend" yAxisId="spend" stroke="#111111" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="avg_performance_score" yAxisId="performance" stroke="var(--brand-dark)" strokeWidth={2} dot={{ r: 2 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
