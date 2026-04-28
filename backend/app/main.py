@@ -141,7 +141,11 @@ def _validate_dataset_shape(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict) or not payload:
         raise HTTPException(status_code=400, detail="Uploaded file must be a non-empty JSON object.")
 
-    for commit_hash, item in payload.items():
+    commits_payload = payload.get("commits", payload)
+    if not isinstance(commits_payload, dict) or not commits_payload:
+        raise HTTPException(status_code=400, detail="Uploaded file must include a non-empty commits object.")
+
+    for commit_hash, item in commits_payload.items():
         if not isinstance(commit_hash, str) or not commit_hash.strip():
             raise HTTPException(status_code=400, detail="Each top-level key must be a commit hash string.")
         if not isinstance(item, dict):
@@ -154,6 +158,19 @@ def _validate_dataset_shape(payload: Any) -> dict[str, Any]:
             )
         if not isinstance(item.get("overriddenByCommits"), list):
             raise HTTPException(status_code=400, detail=f"Commit '{commit_hash}' has invalid overriddenByCommits.")
+
+    if "subscriptions" in payload:
+        subscriptions = payload["subscriptions"]
+        if not isinstance(subscriptions, dict):
+            raise HTTPException(status_code=400, detail="subscriptions must be an object when provided.")
+        for author_name, models in subscriptions.items():
+            if not isinstance(author_name, str) or not author_name.strip():
+                raise HTTPException(status_code=400, detail="Each subscriptions key must be an author string.")
+            if not isinstance(models, list) or not all(isinstance(model_name, str) for model_name in models):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"subscriptions for author '{author_name}' must be an array of model strings.",
+                )
 
     return payload
 

@@ -51,7 +51,8 @@ def _sprint_sort_key(value: str) -> int:
 
 
 def load_enriched_commits() -> list[dict[str, Any]]:
-    raw_commits = _load_json(COMMITS_PATH)
+    raw_payload = _load_json(COMMITS_PATH)
+    raw_commits = raw_payload.get("commits", raw_payload)
     pricing = _load_json(PRICING_PATH)
     default_pricing = pricing.get("_default", {"input_per_million": 1.0, "output_per_million": 2.0})
 

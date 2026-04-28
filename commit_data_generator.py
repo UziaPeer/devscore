@@ -13,6 +13,14 @@ MODELS = {
     "CodeLlama": 0.62
 }
 
+MODEL_SUBSCRIPTION_LABELS = {
+    "GPT-4": "gpt-4",
+    "Claude": "claude",
+    "Gemini": "gemini",
+    "GPT-3.5": "gpt-3.5",
+    "CodeLlama": "codeLlama"
+}
+
 SENIORITY = {
     "Junior": 0.55,
     "2": 0.65,
@@ -128,14 +136,35 @@ def generate_commit_text(team, project):
     return template.format(project=project, topic=topic)
 
 
+def build_author_subscriptions():
+    subscriptions = {}
+    model_names = list(MODELS.keys())
+    for author, _, _ in AUTHORS:
+        # Most users get 2-3 models in their subscription list.
+        count = random.randint(2, 3)
+        subscriptions[author] = random.sample(model_names, count)
+    return subscriptions
+
+
+def choose_model_for_author(subscribed_models):
+    # Users usually choose from their subscriptions, but not always.
+    if subscribed_models and random.random() < 0.85:
+        return random.choice(subscribed_models)
+    fallback_pool = [model for model in MODELS.keys() if model not in subscribed_models]
+    if not fallback_pool:
+        fallback_pool = list(MODELS.keys())
+    return random.choice(fallback_pool)
+
+
 def generate_mock_data(num_commits=1000):
-    data = {}
+    commits = {}
     all_hashes = []
     quality_map = {}  # internal only
+    author_subscriptions = build_author_subscriptions()
 
     for i in range(num_commits):
         author, seniority, team = random.choice(AUTHORS)
-        model = random.choice(list(MODELS.keys()))
+        model = choose_model_for_author(author_subscriptions[author])
 
         model_quality = MODELS[model]
         seniority_quality = SENIORITY[seniority]
@@ -165,13 +194,14 @@ def generate_mock_data(num_commits=1000):
         all_hashes.append(commit_hash)
         quality_map[commit_hash] = quality_score  # internal only
 
-        data[commit_hash] = {
+        commits[commit_hash] = {
             "author": author,
             "authorSeniority": seniority,
             "team": team,
             "project": project,
             "commitText": commit_text,
             "model": model,
+            "lines": random.randint(10, 1000),
             "commitDate": commit_date.isoformat() + "Z",
             "mergeDate": merge_date.isoformat() + "Z",
             "overriddenByCommits": [],
@@ -182,7 +212,7 @@ def generate_mock_data(num_commits=1000):
 
     # Add override relationships
     for commit_hash in all_hashes:
-        commit = data[commit_hash]
+        commit = commits[commit_hash]
         quality = quality_map[commit_hash]
 
         override_probability = 0.25 + ((1 - quality) * 0.85)
@@ -191,7 +221,7 @@ def generate_mock_data(num_commits=1000):
         if random.random() < override_probability:
             possible_overriders = [
                 h for h in all_hashes
-                if data[h]["commitDate"] > commit["commitDate"]
+                if commits[h]["commitDate"] > commit["commitDate"]
             ]
 
             if possible_overriders:
@@ -210,10 +240,18 @@ def generate_mock_data(num_commits=1000):
 
                 commit["bugFixOverridesCount"] = bug_fix_count
 
-    return data
+    subscriptions_payload = {
+        author: [MODEL_SUBSCRIPTION_LABELS[model] for model in subscribed]
+        for author, subscribed in author_subscriptions.items()
+    }
+    return {
+        "commits": commits,
+        "subscriptions": subscriptions_payload
+    }
 
 
-def add_commit_segments(commits, sprint_length_days=14):
+def add_commit_segments(dataset, sprint_length_days=14):
+    commits = dataset["commits"]
     sorted_commits = sorted(
         commits.items(),
         key=lambda item: item[1]["commitDate"]
@@ -234,7 +272,7 @@ def add_commit_segments(commits, sprint_length_days=14):
         commits[commit_hash]["sprint"] = sprint_key
         commits[commit_hash]["quarter"] = quarter_key
 
-    return commits
+    return dataset
 
 
 def write_json(path, data):
