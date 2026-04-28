@@ -55,6 +55,18 @@ def _sprint_sort_key(value: str) -> int:
         return 0
 
 
+def _seniority_sort_key(value: str) -> tuple[int, str]:
+    normalized = value.strip().lower()
+    order = {
+        "junior": 1,
+        "2": 2,
+        "3": 3,
+        "4": 4,
+        "senior": 5,
+    }
+    return (order.get(normalized, 999), normalized)
+
+
 def load_enriched_commits() -> list[dict[str, Any]]:
     raw_payload = _load_json(COMMITS_PATH)
     control_payload = _load_json(HUMAN_CONTROL_COMMITS_PATH) if HUMAN_CONTROL_COMMITS_PATH.exists() else {}
@@ -192,8 +204,8 @@ def apply_filters(
     project: list[str] | None = None,
     model: list[str] | None = None,
     seniority: list[str] | None = None,
-    quarter: str | None = None,
-    sprint: str | None = None,
+    quarter: list[str] | None = None,
+    sprint: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     result = rows
     if team:
@@ -209,9 +221,11 @@ def apply_filters(
         allowed = set(seniority)
         result = [row for row in result if row.get("seniority") in allowed]
     if quarter:
-        result = [row for row in result if row.get("quarter") == quarter]
+        allowed = set(quarter)
+        result = [row for row in result if row.get("quarter") in allowed]
     if sprint:
-        result = [row for row in result if row.get("sprint") == sprint]
+        allowed = set(sprint)
+        result = [row for row in result if row.get("sprint") in allowed]
     return result
 
 
@@ -327,8 +341,16 @@ def breakdown(rows: list[dict[str, Any]], dimension: str) -> list[dict[str, Any]
     return response
 
 
-def spend_trend(rows: list[dict[str, Any]], *, quarter: str | None = None, sprint: str | None = None) -> dict[str, Any]:
-    if sprint:
+def spend_trend(
+    rows: list[dict[str, Any]],
+    *,
+    quarter: list[str] | None = None,
+    sprint: list[str] | None = None,
+) -> dict[str, Any]:
+    selected_sprint = sprint[0] if sprint and len(sprint) == 1 else None
+    selected_quarter = quarter[0] if quarter and len(quarter) == 1 else None
+
+    if selected_sprint:
         groups: dict[str, list[dict[str, Any]]] = {}
         for item in rows:
             day_label = datetime.fromisoformat(item["commit_date"]).strftime("%Y-%m-%d")
@@ -348,11 +370,11 @@ def spend_trend(rows: list[dict[str, Any]], *, quarter: str | None = None, sprin
         points.sort(key=lambda item: item["label"])
         return {
             "mode": "sprint_daily",
-            "title": f"Sprint Trend ({sprint})",
+            "title": f"Sprint Trend ({selected_sprint})",
             "points": points,
         }
 
-    if quarter:
+    if selected_quarter:
         groups: dict[str, list[dict[str, Any]]] = {}
         for item in rows:
             groups.setdefault(item["sprint"], []).append(item)
@@ -371,7 +393,7 @@ def spend_trend(rows: list[dict[str, Any]], *, quarter: str | None = None, sprin
         points.sort(key=lambda item: _sprint_sort_key(item["label"]))
         return {
             "mode": "quarter_sprints",
-            "title": f"Sprint Spend Trend ({quarter})",
+            "title": f"Sprint Spend Trend ({selected_quarter})",
             "points": points,
         }
 
@@ -415,7 +437,7 @@ def options(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "teams": sorted({item["team"] for item in rows if item.get("team")}),
         "projects": sorted({item["project"] for item in rows if item.get("project")}),
         "models": sorted({item["model"] for item in rows if item.get("model")}),
-        "seniority_levels": sorted({item["seniority"] for item in rows if item.get("seniority")}),
+        "seniority_levels": sorted({item["seniority"] for item in rows if item.get("seniority")}, key=_seniority_sort_key),
         "quarters": sorted({item["quarter"] for item in rows if item.get("quarter")}),
         "sprints": sorted({item["sprint"] for item in rows if item.get("sprint")}, key=_sprint_sort_key),
         "team_projects": {team: sorted(list(projects)) for team, projects in team_projects.items()},

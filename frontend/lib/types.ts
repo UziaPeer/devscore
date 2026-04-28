@@ -3,8 +3,8 @@ export type Filters = {
   project?: string[];
   model?: string[];
   seniority?: string[];
-  quarter?: string;
-  sprint?: string;
+  quarter?: string[];
+  sprint?: string[];
 };
 
 export type Summary = {

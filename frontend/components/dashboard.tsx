@@ -137,7 +137,8 @@ const MODEL_BAR_COLORS: Record<string, string> = {
   "gpt4": "#00A67E",
   "gpt-3.5": "#00A67E",
   "gpt3.5": "#00A67E",
-  "gpt-35": "#00A67E"
+  "gpt-35": "#00A67E",
+  human: "#8A8F99"
 };
 
 const MODEL_LOGO_URLS: Record<string, string> = {
@@ -369,6 +370,8 @@ function ModelAxisTick({
 }) {
   const label = payload?.value ?? "";
   const logoUrl = getModelLogoUrl(label);
+  const normalized = label.trim().toLowerCase();
+  const isHuman = normalized === "human";
   const logoSize = 20;
 
   return (
@@ -376,7 +379,14 @@ function ModelAxisTick({
       <text x={0} y={14} textAnchor="middle" fill="var(--text-muted)" fontSize={11}>
         {label}
       </text>
-      {logoUrl && <image href={logoUrl} x={-logoSize / 2} y={20} width={logoSize} height={logoSize} />}
+      {isHuman && (
+        <g transform="translate(-10,20)">
+          <circle cx="10" cy="4.5" r="4" fill="none" stroke="#111111" strokeWidth="1.6" />
+          <path d="M3.2,18.8 L16.8,18.8 L16.1,10.8 L12.6,9.1 L7.4,9.1 L3.9,10.8 Z" fill="none" stroke="#111111" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M8.7,10 L11.3,10 L10.5,12.1 L10.5,18.8 L9.5,18.8 L9.5,12.1 Z" fill="#5f97a8" stroke="#111111" strokeWidth="0.9" strokeLinejoin="round" />
+        </g>
+      )}
+      {!isHuman && logoUrl && <image href={logoUrl} x={-logoSize / 2} y={20} width={logoSize} height={logoSize} />}
     </g>
   );
 }
@@ -449,12 +459,13 @@ export function Dashboard() {
   const sortedModelData = useMemo(() => {
     const dataKey = modelChartConfig.dataKey;
     const direction = modelChartConfig.higherIsBetter ? -1 : 1;
-    return [...byModel].sort((left, right) => {
+    const modelRows = modelChartTab === "cost" ? byModel.filter((row) => row.value !== "Human") : byModel;
+    return [...modelRows].sort((left, right) => {
       const leftValue = Number(left[dataKey]);
       const rightValue = Number(right[dataKey]);
       return (leftValue - rightValue) * direction;
     });
-  }, [byModel, modelChartConfig.dataKey, modelChartConfig.higherIsBetter]);
+  }, [byModel, modelChartConfig.dataKey, modelChartConfig.higherIsBetter, modelChartTab]);
   const trendTitle = useMemo(() => {
     if (trend.title.includes("Spend & Performance")) {
       return trend.title;
@@ -473,10 +484,22 @@ export function Dashboard() {
     return Array.from(union).sort();
   }, [filters.team, options.projects, options.team_projects]);
   const sprintOptions = useMemo(() => {
-    if (!filters.quarter) {
+    const selectedQuarters = filters.quarter ?? [];
+    if (selectedQuarters.length === 0) {
       return options.sprints;
     }
-    return options.quarter_sprints[filters.quarter] ?? [];
+    const union = new Set<string>();
+    selectedQuarters.forEach((quarterName) => {
+      (options.quarter_sprints[quarterName] ?? []).forEach((sprintName) => union.add(sprintName));
+    });
+    return Array.from(union).sort((left, right) => {
+      const leftNumber = Number.parseInt(left.replace("Sprint ", ""), 10);
+      const rightNumber = Number.parseInt(right.replace("Sprint ", ""), 10);
+      if (Number.isNaN(leftNumber) || Number.isNaN(rightNumber)) {
+        return left.localeCompare(right);
+      }
+      return leftNumber - rightNumber;
+    });
   }, [filters.quarter, options.sprints, options.quarter_sprints]);
 
   useEffect(() => {
@@ -492,13 +515,15 @@ export function Dashboard() {
   }, [filters.project, projectOptions]);
 
   useEffect(() => {
-    if (!filters.sprint) {
+    const selectedSprints = filters.sprint ?? [];
+    if (selectedSprints.length === 0) {
       return;
     }
-    if (sprintOptions.includes(filters.sprint)) {
+    const validSprints = selectedSprints.filter((sprintName) => sprintOptions.includes(sprintName));
+    if (validSprints.length === selectedSprints.length) {
       return;
     }
-    setFilters((previous) => ({ ...previous, sprint: undefined }));
+    setFilters((previous) => ({ ...previous, sprint: validSprints.length ? validSprints : undefined }));
   }, [filters.sprint, sprintOptions]);
 
   async function runAiActions() {
@@ -646,20 +671,36 @@ export function Dashboard() {
               options={options.seniority_levels}
               onChange={(value) => setFilters((prev) => ({ ...prev, seniority: value.length ? value : undefined }))}
             />
-            <SelectField
+            <MultiCheckboxField
               label="Quarter"
-              value={filters.quarter ?? ""}
+              values={filters.quarter ?? []}
               options={options.quarters}
-              onChange={(value) => {
-                const nextQuarter = value || undefined;
+              onChange={(nextQuarters) => {
+                const quarterValues = nextQuarters.length ? nextQuarters : undefined;
                 setFilters((previous) => {
-                  const nextSprintOptions = nextQuarter ? options.quarter_sprints[nextQuarter] ?? [] : options.sprints;
-                  const nextSprint = previous.sprint && nextSprintOptions.includes(previous.sprint) ? previous.sprint : undefined;
-                  return { ...previous, quarter: nextQuarter, sprint: nextSprint };
+                  if (!quarterValues) {
+                    return { ...previous, quarter: undefined };
+                  }
+                  const allowedSprints = new Set<string>();
+                  quarterValues.forEach((quarterName) => {
+                    (options.quarter_sprints[quarterName] ?? []).forEach((sprintName) => allowedSprints.add(sprintName));
+                  });
+                  const currentSprints = previous.sprint ?? [];
+                  const filteredSprints = currentSprints.filter((sprintName) => allowedSprints.has(sprintName));
+                  return {
+                    ...previous,
+                    quarter: quarterValues,
+                    sprint: filteredSprints.length ? filteredSprints : undefined
+                  };
                 });
               }}
             />
-            <SelectField label="Sprint" value={filters.sprint ?? ""} options={sprintOptions} onChange={(value) => setFilters((prev) => ({ ...prev, sprint: value || undefined }))} />
+            <MultiCheckboxField
+              label="Sprint"
+              values={filters.sprint ?? []}
+              options={sprintOptions}
+              onChange={(value) => setFilters((prev) => ({ ...prev, sprint: value.length ? value : undefined }))}
+            />
           </div>
         </section>
         <section

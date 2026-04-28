@@ -109,6 +109,10 @@ Because the backend now loads `backend/.env`, you no longer need to type `OPENAI
 The dashboard includes a **Data Source** card showing the current JSON filename in use.
 You can upload a new JSON file there and it will replace `mock_commits.json` immediately.
 
+Important:
+- Upload can replace only `mock_commits.json` (AI-era data).
+- `mock_commits_human_control.json` is a fixed control-group dataset (Human baseline) and is not replaceable through upload.
+
 
 ## performance calculation
 

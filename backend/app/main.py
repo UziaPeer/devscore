@@ -28,8 +28,8 @@ class FilterPayload(BaseModel):
     project: list[str] | None = None
     model: list[str] | None = None
     seniority: list[str] | None = None
-    quarter: str | None = None
-    sprint: str | None = None
+    quarter: list[str] | None = None
+    sprint: list[str] | None = None
 
 
 class QueryPayload(FilterPayload):
@@ -160,6 +160,11 @@ def _validate_dataset_shape(payload: Any) -> dict[str, Any]:
             raise HTTPException(status_code=400, detail=f"Commit '{commit_hash}' has invalid overriddenByCommits.")
         if "lines" in item and not isinstance(item.get("lines"), int):
             raise HTTPException(status_code=400, detail=f"Commit '{commit_hash}' has invalid lines value.")
+        if str(item.get("model", "")).strip().lower() == "human":
+            raise HTTPException(
+                status_code=400,
+                detail="Uploaded dataset cannot contain 'Human' model commits. Human control data is fixed server-side.",
+            )
 
     subscriptions_key = "subscriptions" if "subscriptions" in payload else "subscription" if "subscription" in payload else None
     if subscriptions_key:
@@ -219,6 +224,8 @@ async def data_upload(file: UploadFile = File(...)) -> DataSourceResponse:
     validated = _validate_dataset_shape(payload)
 
     try:
+        # Uploads are intentionally scoped to mock_commits.json only.
+        # The human control-group dataset (mock_commits_human_control.json) is fixed and not user-replaceable.
         with COMMITS_PATH.open("w", encoding="utf-8") as handle:
             json.dump(validated, handle, indent=2)
     except OSError as exc:
@@ -239,8 +246,8 @@ def analytics_summary(
     project: list[str] | None = Query(default=None),
     model: list[str] | None = Query(default=None),
     seniority: list[str] | None = Query(default=None),
-    quarter: str | None = None,
-    sprint: str | None = None,
+    quarter: list[str] | None = Query(default=None),
+    sprint: list[str] | None = Query(default=None),
 ) -> dict[str, Any]:
     rows = _filtered_rows(
         FilterPayload(
@@ -262,8 +269,8 @@ def analytics_breakdown(
     project: list[str] | None = Query(default=None),
     model: list[str] | None = Query(default=None),
     seniority: list[str] | None = Query(default=None),
-    quarter: str | None = None,
-    sprint: str | None = None,
+    quarter: list[str] | None = Query(default=None),
+    sprint: list[str] | None = Query(default=None),
 ) -> list[dict[str, Any]]:
     rows = _filtered_rows(
         FilterPayload(
@@ -284,8 +291,8 @@ def analytics_trend(
     project: list[str] | None = Query(default=None),
     model: list[str] | None = Query(default=None),
     seniority: list[str] | None = Query(default=None),
-    quarter: str | None = None,
-    sprint: str | None = None,
+    quarter: list[str] | None = Query(default=None),
+    sprint: list[str] | None = Query(default=None),
 ) -> dict[str, Any]:
     rows = _filtered_rows(
         FilterPayload(
