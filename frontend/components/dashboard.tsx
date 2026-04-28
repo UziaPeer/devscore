@@ -890,7 +890,7 @@ export function Dashboard() {
                 <YAxis yAxisId="spend" tick={{ fontSize: 11 }} />
                 <YAxis yAxisId="performance" orientation="right" domain={[0, 100]} tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Line type="monotone" dataKey="estimated_spend" yAxisId="spend" stroke="#111111" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="estimated_spend" yAxisId="spend" stroke="#D64141" strokeWidth={2} dot={{ r: 2 }} />
                 <Line type="monotone" dataKey="avg_performance_score" yAxisId="performance" stroke="var(--brand-dark)" strokeWidth={2} dot={{ r: 2 }} />
               </LineChart>
             </ResponsiveContainer>
