@@ -264,6 +264,9 @@ def breakdown(rows: list[dict[str, Any]], dimension: str) -> list[dict[str, Any]
         commits = len(group_rows)
         spend = sum(item["estimated_cost"] for item in group_rows)
         performance = sum(item["performance_score"] for item in group_rows)
+        avg_longevity_days = sum(item["longevity_days"] for item in group_rows) / commits
+        avg_bug_fix_count = sum(item["bug_fix_count"] for item in group_rows) / commits
+        avg_iterations_raw = sum(item["iterations_raw"] for item in group_rows) / commits
         longevity_score = sum(item["longevity_score"] for item in group_rows) / commits
         bug_fix_score = sum(item["bug_fix_score"] for item in group_rows) / commits
         lead_time_score = sum(item["lead_time_score"] for item in group_rows) / commits
@@ -277,6 +280,9 @@ def breakdown(rows: list[dict[str, Any]], dimension: str) -> list[dict[str, Any]
                 "usage_pct": round((commits / total_commits) * 100.0, 2),
                 "estimated_spend": round(spend, 4),
                 "avg_performance_score": round(performance / commits, 2),
+                "avg_longevity_days": round(avg_longevity_days, 2),
+                "avg_bug_fix_count": round(avg_bug_fix_count, 2),
+                "avg_iterations_raw": round(avg_iterations_raw, 2),
                 "avg_longevity_score": round(longevity_score, 2),
                 "avg_bug_fix_score": round(bug_fix_score, 2),
                 "avg_lead_time_score": round(lead_time_score, 2),

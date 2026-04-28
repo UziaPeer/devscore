@@ -33,10 +33,10 @@ const MODEL_METRIC_CONFIG: Record<
     label: string;
     title: string;
     dataKey:
-      | "avg_longevity_score"
-      | "avg_bug_fix_score"
-      | "avg_lead_time_score"
-      | "avg_iterations_score"
+      | "avg_longevity_days"
+      | "avg_bug_fix_count"
+      | "avg_lead_time_hours"
+      | "avg_iterations_raw"
       | "estimated_spend"
       | "avg_performance_score"
       | "roi_score";
@@ -47,35 +47,37 @@ const MODEL_METRIC_CONFIG: Record<
 > = {
   longevity: {
     label: "Longevity",
-    title: "Longevity Score by Model",
-    dataKey: "avg_longevity_score",
+    title: "Average Longevity (Days) by Model",
+    dataKey: "avg_longevity_days",
     higherIsBetter: true,
+    yFormatter: (value) => `${value.toFixed(1)}d`,
     tooltip:
-      "Code longevity: how long code remains unchanged before override. Higher is better."
+      "Average longevity days before first override. Higher is better. Contribution to Performance Score: 35%."
   },
   bugfix: {
     label: "Bug Fix",
-    title: "Bug Fix Score by Model",
-    dataKey: "avg_bug_fix_score",
-    higherIsBetter: true,
+    title: "Average Bug-Fix Overrides by Model",
+    dataKey: "avg_bug_fix_count",
+    higherIsBetter: false,
     tooltip:
-      "Based on dedicated bug-fix commits (bugFixOverridesCount). Lower raw bug-fix count is better."
+      "Average bugFixOverridesCount per commit. Lower is better. Contribution to Performance Score: 30%."
   },
   leadtime: {
     label: "Lead Time",
-    title: "Lead Time Score by Model",
-    dataKey: "avg_lead_time_score",
-    higherIsBetter: true,
+    title: "Average Lead Time (Hours) by Model",
+    dataKey: "avg_lead_time_hours",
+    higherIsBetter: false,
+    yFormatter: (value) => `${value.toFixed(1)}h`,
     tooltip:
-      "Based on mergeDate - commitDate. Lower raw lead time is better."
+      "Average mergeDate - commitDate in hours. Lower is better. Contribution to Performance Score: 20%."
   },
   iterations: {
     label: "Iterations",
-    title: "Iterations Score by Model",
-    dataKey: "avg_iterations_score",
-    higherIsBetter: true,
+    title: "Average PR Iterations by Model",
+    dataKey: "avg_iterations_raw",
+    higherIsBetter: false,
     tooltip:
-      "Based on revisionsBeforeMerge + commentsBeforeMerge/4. Lower raw iterations is better."
+      "Average iterations_raw = revisionsBeforeMerge + commentsBeforeMerge/4. Lower is better. Contribution to Performance Score: 15%."
   },
   cost: {
     label: "Cost",
@@ -84,7 +86,7 @@ const MODEL_METRIC_CONFIG: Record<
     higherIsBetter: false,
     yFormatter: (value) => `$${value.toFixed(3)}`,
     tooltip:
-      "Estimated cost from token usage and pricing.json. Lower cost is better."
+      "If the developer has a subscription to this model, we use their subscription cost. If not, we charge by usage. Bigger commits cost more in usage mode. Lower is better."
   },
   performance: {
     label: "Performance",
@@ -92,7 +94,7 @@ const MODEL_METRIC_CONFIG: Record<
     dataKey: "avg_performance_score",
     higherIsBetter: true,
     tooltip:
-      "Weighted score: 0.35*Longevity + 0.30*BugFix + 0.20*LeadTime + 0.15*Iterations. Higher is better."
+      "Composite score: Longevity 35%, Bug Fix 30%, Lead Time 20%, Iterations 15%. Higher is better."
   },
   roi: {
     label: "ROI",
