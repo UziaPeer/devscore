@@ -8,6 +8,7 @@ from typing import Any
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 COMMITS_PATH = ROOT_DIR / "mock_commits.json"
+HUMAN_CONTROL_COMMITS_PATH = ROOT_DIR / "mock_commits_human_control.json"
 PRICING_PATH = ROOT_DIR / "backend" / "config" / "pricing.json"
 
 WEIGHTS = {
@@ -56,8 +57,15 @@ def _sprint_sort_key(value: str) -> int:
 
 def load_enriched_commits() -> list[dict[str, Any]]:
     raw_payload = _load_json(COMMITS_PATH)
-    raw_commits = raw_payload.get("commits", raw_payload)
-    raw_subscriptions = raw_payload.get("subscriptions", raw_payload.get("subscription", {}))
+    control_payload = _load_json(HUMAN_CONTROL_COMMITS_PATH) if HUMAN_CONTROL_COMMITS_PATH.exists() else {}
+
+    primary_commits = raw_payload.get("commits", raw_payload)
+    control_commits = control_payload.get("commits", control_payload) if control_payload else {}
+    raw_commits = {**primary_commits, **control_commits}
+
+    primary_subscriptions = raw_payload.get("subscriptions", raw_payload.get("subscription", {}))
+    control_subscriptions = control_payload.get("subscriptions", control_payload.get("subscription", {})) if control_payload else {}
+    raw_subscriptions = {**primary_subscriptions, **control_subscriptions}
     pricing = _load_json(PRICING_PATH)
     default_pricing = pricing.get("_default", {"cost_per_million": 3.0, "subscription_cost": 60.0})
     pricing_model_keys = {
@@ -293,6 +301,24 @@ def breakdown(rows: list[dict[str, Any]], dimension: str) -> list[dict[str, Any]
                 "cost_per_performance_point": round(spend / max(performance, 1.0), 6),
             }
         )
+
+    human_row = next((row for row in response if row["value"] == "Human"), None) if dimension == "model" else None
+    if human_row:
+        for row in response:
+            row["vs_human_performance_delta"] = round(row["avg_performance_score"] - human_row["avg_performance_score"], 2)
+            row["vs_human_longevity_days_delta"] = round(row["avg_longevity_days"] - human_row["avg_longevity_days"], 2)
+            row["vs_human_bug_fix_count_delta"] = round(row["avg_bug_fix_count"] - human_row["avg_bug_fix_count"], 2)
+            row["vs_human_lead_time_hours_delta"] = round(row["avg_lead_time_hours"] - human_row["avg_lead_time_hours"], 2)
+            row["vs_human_iterations_raw_delta"] = round(row["avg_iterations_raw"] - human_row["avg_iterations_raw"], 2)
+            row["vs_human_roi_delta"] = round(row["roi_score"] - human_row["roi_score"], 2)
+    elif dimension == "model":
+        for row in response:
+            row["vs_human_performance_delta"] = None
+            row["vs_human_longevity_days_delta"] = None
+            row["vs_human_bug_fix_count_delta"] = None
+            row["vs_human_lead_time_hours_delta"] = None
+            row["vs_human_iterations_raw_delta"] = None
+            row["vs_human_roi_delta"] = None
 
     if dimension in {"quarter", "sprint"}:
         response.sort(key=lambda item: item["value"])

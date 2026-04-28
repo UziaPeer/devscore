@@ -19,6 +19,10 @@
     "cost_per_million": 2.3,
     "subscription_cost": 50.0
   },
+  "Human": {
+    "cost_per_million": 0.0,
+    "subscription_cost": 0.0
+  },
   "_default": {
     "cost_per_million": 3.0,
     "subscription_cost": 60.0

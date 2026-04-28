@@ -79,6 +79,8 @@ COMMIT_TEXT_TEMPLATES = [
 
 START_DATE = datetime(2024, 1, 1)
 END_DATE = datetime(2025, 12, 31, 23, 59)
+HUMAN_CONTROL_START = datetime(2023, 1, 1)
+HUMAN_CONTROL_END = datetime(2023, 6, 30, 23, 59)
 
 
 def generate_commit_hash(seed: str) -> str:
@@ -116,6 +118,10 @@ def random_commit_date(index):
         return random_date_between(quarter_start, quarter_end)
 
     return random_date_between(START_DATE, END_DATE)
+
+
+def random_human_control_date():
+    return random_date_between(HUMAN_CONTROL_START, HUMAN_CONTROL_END)
 
 
 def choose_project(team):
@@ -242,6 +248,86 @@ def generate_mock_data(num_commits=1000):
     }
 
 
+def generate_human_control_data(num_commits=350):
+    commits = {}
+    all_hashes = []
+    quality_map = {}  # internal only
+    subscriptions_payload = {}
+
+    for i in range(num_commits):
+        author, seniority, team = random.choice(AUTHORS)
+        model = "Human"
+        project = choose_project(team)
+        commit_text = generate_commit_text(team, project)
+        commit_date = random_human_control_date()
+
+        # Human-only baseline: slower delivery and weaker outcomes on average.
+        base_quality = SENIORITY[seniority] * 0.78
+        quality_score = clamp(base_quality + random.uniform(-0.10, 0.06), 0.08, 0.82)
+
+        merge_delay_hours = int(random.uniform(10, 120) * (1.25 - quality_score))
+        merge_date = commit_date + timedelta(hours=max(4, merge_delay_hours))
+
+        revisions_before_merge = max(1, int(random.gauss(
+            mu=2 + ((1 - quality_score) * 10),
+            sigma=1.6
+        )))
+        comments_before_merge = max(0, int(random.gauss(
+            mu=3 + ((1 - quality_score) * 22),
+            sigma=4
+        )))
+
+        commit_hash = f"human-{generate_commit_hash(f'{author}-{model}-{commit_date}-{i}')}"
+        lines = random.randint(25, 1200)
+        all_hashes.append(commit_hash)
+        quality_map[commit_hash] = quality_score
+        subscriptions_payload[author] = ["Human"]
+
+        commits[commit_hash] = {
+            "author": author,
+            "authorSeniority": seniority,
+            "team": team,
+            "project": project,
+            "commitText": commit_text,
+            "model": model,
+            "lines": lines,
+            "commitDate": commit_date.isoformat() + "Z",
+            "mergeDate": merge_date.isoformat() + "Z",
+            "overriddenByCommits": [],
+            "bugFixOverridesCount": 0,
+            "revisionsBeforeMerge": revisions_before_merge,
+            "commentsBeforeMerge": comments_before_merge
+        }
+
+    # More overrides/bug-fix pressure in pre-AI period.
+    for commit_hash in all_hashes:
+        commit = commits[commit_hash]
+        quality = quality_map[commit_hash]
+        override_probability = clamp(0.42 + ((1 - quality) * 0.95), 0.25, 0.98)
+        if random.random() < override_probability:
+            possible_overriders = [
+                h for h in all_hashes
+                if commits[h]["commitDate"] > commit["commitDate"]
+            ]
+            if possible_overriders:
+                max_overrides = min(10, len(possible_overriders))
+                min_overrides = min(2, max_overrides)
+                num_overrides = random.randint(min_overrides, max_overrides)
+                overridden_by = random.sample(possible_overriders, num_overrides)
+                commit["overriddenByCommits"] = overridden_by
+
+                bug_fix_count = 0
+                for _ in overridden_by:
+                    if random.random() < clamp(0.48 + (1 - quality), 0.35, 0.96):
+                        bug_fix_count += 1
+                commit["bugFixOverridesCount"] = bug_fix_count
+
+    return {
+        "commits": commits,
+        "subscriptions": subscriptions_payload
+    }
+
+
 def add_commit_segments(dataset, sprint_length_days=14):
     commits = dataset["commits"]
     sorted_commits = sorted(
@@ -275,7 +361,10 @@ def write_json(path, data):
 if __name__ == "__main__":
     mock_data = generate_mock_data(num_commits=1000)
     mock_data = add_commit_segments(mock_data)
+    human_control_data = generate_human_control_data(num_commits=350)
+    human_control_data = add_commit_segments(human_control_data)
 
     write_json("mock_commits.json", mock_data)
+    write_json("mock_commits_human_control.json", human_control_data)
 
-    print(json.dumps(mock_data, indent=2))
+    print(json.dumps({"mock_commits": mock_data, "human_control": human_control_data}, indent=2))

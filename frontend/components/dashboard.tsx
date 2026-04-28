@@ -41,7 +41,15 @@ const MODEL_METRIC_CONFIG: Record<
       | "avg_performance_score"
       | "roi_score";
     higherIsBetter: boolean;
+    deltaKey?:
+      | "vs_human_longevity_days_delta"
+      | "vs_human_bug_fix_count_delta"
+      | "vs_human_lead_time_hours_delta"
+      | "vs_human_iterations_raw_delta"
+      | "vs_human_performance_delta"
+      | "vs_human_roi_delta";
     yFormatter?: (value: number) => string;
+    valueFormatter?: (value: number) => string;
     tooltip: string;
   }
 > = {
@@ -50,34 +58,42 @@ const MODEL_METRIC_CONFIG: Record<
     title: "Average Longevity (Days) by Model",
     dataKey: "avg_longevity_days",
     higherIsBetter: true,
+    deltaKey: "vs_human_longevity_days_delta",
     yFormatter: (value) => `${value.toFixed(1)}d`,
+    valueFormatter: (value) => `${value.toFixed(1)} days`,
     tooltip:
-      "Average longevity days before first override. Higher is better. Contribution to Performance Score: 35%."
+      "Average days before code is overridden. Compared to Human baseline. Higher is better. This metric contributes 35% to Performance."
   },
   bugfix: {
     label: "Bug Fix",
     title: "Average Bug-Fix Overrides by Model",
     dataKey: "avg_bug_fix_count",
     higherIsBetter: false,
+    deltaKey: "vs_human_bug_fix_count_delta",
+    valueFormatter: (value) => value.toFixed(2),
     tooltip:
-      "Average bugFixOverridesCount per commit. Lower is better. Contribution to Performance Score: 30%."
+      "Average bug-fix overrides per commit. Compared to Human baseline. Lower is better. This metric contributes 30% to Performance."
   },
   leadtime: {
     label: "Lead Time",
     title: "Average Lead Time (Hours) by Model",
     dataKey: "avg_lead_time_hours",
     higherIsBetter: false,
+    deltaKey: "vs_human_lead_time_hours_delta",
     yFormatter: (value) => `${value.toFixed(1)}h`,
+    valueFormatter: (value) => `${value.toFixed(1)} hours`,
     tooltip:
-      "Average mergeDate - commitDate in hours. Lower is better. Contribution to Performance Score: 20%."
+      "Average time to merge (hours). Compared to Human baseline. Lower is better. This metric contributes 20% to Performance."
   },
   iterations: {
     label: "Iterations",
     title: "Average PR Iterations by Model",
     dataKey: "avg_iterations_raw",
     higherIsBetter: false,
+    deltaKey: "vs_human_iterations_raw_delta",
+    valueFormatter: (value) => value.toFixed(2),
     tooltip:
-      "Average iterations_raw = revisionsBeforeMerge + commentsBeforeMerge/4. Lower is better. Contribution to Performance Score: 15%."
+      "Average review friction (revisions + comments/4). Compared to Human baseline. Lower is better. This metric contributes 15% to Performance."
   },
   cost: {
     label: "Cost",
@@ -85,6 +101,7 @@ const MODEL_METRIC_CONFIG: Record<
     dataKey: "estimated_spend",
     higherIsBetter: false,
     yFormatter: (value) => `$${value.toFixed(3)}`,
+    valueFormatter: (value) => `$${value.toFixed(3)}`,
     tooltip:
       "If the developer has a subscription to this model, we use their subscription cost. If not, we charge by usage. Bigger commits cost more in usage mode. Lower is better."
   },
@@ -93,16 +110,20 @@ const MODEL_METRIC_CONFIG: Record<
     title: "Performance Score by Model",
     dataKey: "avg_performance_score",
     higherIsBetter: true,
+    deltaKey: "vs_human_performance_delta",
+    valueFormatter: (value) => value.toFixed(2),
     tooltip:
-      "Composite score: Longevity 35%, Bug Fix 30%, Lead Time 20%, Iterations 15%. Higher is better."
+      "Final weighted performance compared to Human baseline. Formula weights: Longevity 35%, Bug Fix 30%, Lead Time 20%, Iterations 15%. Higher is better."
   },
   roi: {
     label: "ROI",
     title: "ROI by Model",
     dataKey: "roi_score",
     higherIsBetter: true,
+    deltaKey: "vs_human_roi_delta",
+    valueFormatter: (value) => value.toFixed(2),
     tooltip:
-      "Return on investment proxy = total performance / total spend. Higher is better."
+      "Performance gained per spend, compared to Human baseline. Higher is better."
   }
 };
 
@@ -327,6 +348,14 @@ function KpiCard({
 function extractMessage(aiItem: AIItem): string {
   const text = aiItem.finding ?? aiItem.answer ?? aiItem.rationale ?? aiItem.reason ?? aiItem.action;
   return typeof text === "string" ? text : JSON.stringify(aiItem);
+}
+
+function formatDelta(value: number, formatter?: (value: number) => string): string {
+  const sign = value > 0 ? "+" : "";
+  if (formatter) {
+    return `${sign}${formatter(value)}`;
+  }
+  return `${sign}${value.toFixed(2)}`;
 }
 
 function ModelAxisTick({
@@ -762,7 +791,45 @@ export function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#dfe7e2" fill="url(#model-plot-fade)" />
                 <XAxis dataKey="value" tick={<ModelAxisTick />} interval={0} height={52} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={modelChartConfig.yFormatter} />
-                <Tooltip />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload || payload.length === 0) {
+                      return null;
+                    }
+                    const row = payload[0]?.payload as BreakdownItem | undefined;
+                    if (!row) {
+                      return null;
+                    }
+                    const rawValue = Number(row[modelChartConfig.dataKey]);
+                    const formattedValue = modelChartConfig.valueFormatter
+                      ? modelChartConfig.valueFormatter(rawValue)
+                      : rawValue.toFixed(2);
+                    const deltaKey = modelChartConfig.deltaKey;
+                    const deltaValue = deltaKey ? row[deltaKey] : null;
+                    return (
+                      <div
+                        style={{
+                          backgroundColor: "white",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          padding: "8px 10px",
+                          boxShadow: "0 4px 14px rgba(0, 0, 33, 0.12)",
+                          fontSize: 12
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}</div>
+                        <div style={{ color: "var(--text-muted)" }}>
+                          {modelChartConfig.label}: {formattedValue}
+                        </div>
+                        {deltaKey && row.value !== "Human" && typeof deltaValue === "number" && (
+                          <div style={{ color: "var(--text-muted)" }}>
+                            vs Human: {formatDelta(deltaValue, modelChartConfig.valueFormatter)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }}
+                />
                 <Bar dataKey={modelChartConfig.dataKey} radius={[4, 4, 0, 0]}>
                   {sortedModelData.map((item) => (
                     <Cell key={`model-bar-${item.value}`} fill={getModelBarColor(item.value)} />

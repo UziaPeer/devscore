@@ -36,6 +36,12 @@ export type BreakdownItem = {
   avg_lead_time_hours: number;
   avg_cost_per_commit: number;
   cost_per_performance_point: number;
+  vs_human_performance_delta?: number | null;
+  vs_human_longevity_days_delta?: number | null;
+  vs_human_bug_fix_count_delta?: number | null;
+  vs_human_lead_time_hours_delta?: number | null;
+  vs_human_iterations_raw_delta?: number | null;
+  vs_human_roi_delta?: number | null;
 };
 
 export type OptionsPayload = {
