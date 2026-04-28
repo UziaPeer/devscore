@@ -158,18 +158,21 @@ def _validate_dataset_shape(payload: Any) -> dict[str, Any]:
             )
         if not isinstance(item.get("overriddenByCommits"), list):
             raise HTTPException(status_code=400, detail=f"Commit '{commit_hash}' has invalid overriddenByCommits.")
+        if "lines" in item and not isinstance(item.get("lines"), int):
+            raise HTTPException(status_code=400, detail=f"Commit '{commit_hash}' has invalid lines value.")
 
-    if "subscriptions" in payload:
-        subscriptions = payload["subscriptions"]
+    subscriptions_key = "subscriptions" if "subscriptions" in payload else "subscription" if "subscription" in payload else None
+    if subscriptions_key:
+        subscriptions = payload[subscriptions_key]
         if not isinstance(subscriptions, dict):
-            raise HTTPException(status_code=400, detail="subscriptions must be an object when provided.")
+            raise HTTPException(status_code=400, detail=f"{subscriptions_key} must be an object when provided.")
         for author_name, models in subscriptions.items():
             if not isinstance(author_name, str) or not author_name.strip():
-                raise HTTPException(status_code=400, detail="Each subscriptions key must be an author string.")
+                raise HTTPException(status_code=400, detail=f"Each {subscriptions_key} key must be an author string.")
             if not isinstance(models, list) or not all(isinstance(model_name, str) for model_name in models):
                 raise HTTPException(
                     status_code=400,
-                    detail=f"subscriptions for author '{author_name}' must be an array of model strings.",
+                    detail=f"{subscriptions_key} for author '{author_name}' must be an array of model strings.",
                 )
 
     return payload

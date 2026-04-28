@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -37,10 +38,13 @@ def _normalize(values: list[float], higher_is_better: bool = True) -> list[float
     return [((high - value) / (high - low)) * 100.0 for value in values]
 
 
-def _estimate_tokens(revisions: int, comments: int, overrides: int, bug_fixes: int) -> tuple[int, int]:
-    input_tokens = int(700 + (revisions * 180) + (comments * 50) + (overrides * 60))
-    output_tokens = int(280 + (revisions * 75) + (bug_fixes * 120))
-    return max(input_tokens, 1), max(output_tokens, 1)
+def _estimate_tokens_from_lines(lines: int) -> int:
+    # Product rule: 1 line ~= 15 tokens on average.
+    return max(lines * 15, 1)
+
+
+def _normalize_model_key(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", name.strip().lower())
 
 
 def _sprint_sort_key(value: str) -> int:
@@ -53,10 +57,28 @@ def _sprint_sort_key(value: str) -> int:
 def load_enriched_commits() -> list[dict[str, Any]]:
     raw_payload = _load_json(COMMITS_PATH)
     raw_commits = raw_payload.get("commits", raw_payload)
+    raw_subscriptions = raw_payload.get("subscriptions", raw_payload.get("subscription", {}))
     pricing = _load_json(PRICING_PATH)
-    default_pricing = pricing.get("_default", {"input_per_million": 1.0, "output_per_million": 2.0})
+    default_pricing = pricing.get("_default", {"cost_per_million": 3.0, "subscription_cost": 60.0})
+    pricing_model_keys = {
+        _normalize_model_key(model_name): model_name for model_name in pricing.keys() if model_name != "_default"
+    }
+
+    subscriptions_by_author: dict[str, set[str]] = {}
+    if isinstance(raw_subscriptions, dict):
+        for author_name, model_names in raw_subscriptions.items():
+            if not isinstance(model_names, list):
+                continue
+            normalized_models = set()
+            for model_name in model_names:
+                if not isinstance(model_name, str):
+                    continue
+                normalized = _normalize_model_key(model_name)
+                normalized_models.add(pricing_model_keys.get(normalized, model_name))
+            subscriptions_by_author[author_name] = normalized_models
 
     commits: list[dict[str, Any]] = []
+    subscribed_usage_counts: dict[tuple[str, str], int] = {}
     commit_date_by_hash: dict[str, datetime] = {}
     for commit_hash, item in raw_commits.items():
         commit_date_by_hash[commit_hash] = _parse_date(item["commitDate"])
@@ -87,22 +109,24 @@ def load_enriched_commits() -> list[dict[str, Any]]:
         bug_fixes = int(item.get("bugFixOverridesCount", 0))
         iterations_raw = revisions + (comments / 4.0)
 
-        input_tokens, output_tokens = _estimate_tokens(revisions, comments, len(overrides), bug_fixes)
-        model = item.get("model", "unknown")
-        model_pricing = pricing.get(model, default_pricing)
-        estimated_cost = (
-            (input_tokens / 1_000_000.0) * float(model_pricing["input_per_million"])
-            + (output_tokens / 1_000_000.0) * float(model_pricing["output_per_million"])
-        )
+        model_raw = str(item.get("model", "unknown"))
+        model = pricing_model_keys.get(_normalize_model_key(model_raw), model_raw)
+        author = str(item.get("author", "Unknown"))
+        lines = int(item.get("lines", 100))
+        token_estimate = _estimate_tokens_from_lines(max(lines, 1))
+        is_subscribed = model in subscriptions_by_author.get(author, set())
+        if is_subscribed:
+            subscribed_usage_counts[(author, model)] = subscribed_usage_counts.get((author, model), 0) + 1
 
         commits.append(
             {
                 "hash": commit_hash,
-                "author": item.get("author"),
+                "author": author,
                 "seniority": item.get("authorSeniority"),
                 "team": item.get("team"),
                 "project": item.get("project"),
                 "model": model,
+                "lines": lines,
                 "quarter": item.get("quarter"),
                 "sprint": item.get("sprint"),
                 "commit_date": commit_date.astimezone(timezone.utc).isoformat(),
@@ -114,11 +138,21 @@ def load_enriched_commits() -> list[dict[str, Any]]:
                 "comments": comments,
                 "iterations_raw": iterations_raw,
                 "overrides_count": len(overrides),
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "estimated_cost": estimated_cost,
+                "estimated_tokens": token_estimate,
+                "is_subscribed_model": is_subscribed,
+                "cost_mode": "subscription" if is_subscribed else "per_token",
+                "estimated_cost": 0.0,
             }
         )
+
+    for item in commits:
+        model_pricing = pricing.get(item["model"], default_pricing)
+        if item["is_subscribed_model"]:
+            usage_count = max(subscribed_usage_counts.get((item["author"], item["model"]), 1), 1)
+            estimated_cost = float(model_pricing["subscription_cost"]) / usage_count
+        else:
+            estimated_cost = (item["estimated_tokens"] / 1_000_000.0) * float(model_pricing["cost_per_million"])
+        item["estimated_cost"] = estimated_cost
 
     longevity_scores = _normalize([item["longevity_days"] for item in commits], higher_is_better=True)
     bug_fix_scores = _normalize([item["bug_fix_count"] for item in commits], higher_is_better=False)

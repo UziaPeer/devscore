@@ -20016,92 +20016,92 @@
   },
   "subscriptions": {
     "Daniel Cohen": [
-      "gpt-4",
-      "gemini"
+      "GPT-4",
+      "Gemini"
     ],
     "Maya Levi": [
-      "claude",
-      "codeLlama"
+      "Claude",
+      "CodeLlama"
     ],
     "Noam Azulay": [
-      "codeLlama",
-      "gpt-4"
+      "CodeLlama",
+      "GPT-4"
     ],
     "Amit Peretz": [
-      "gpt-4",
-      "codeLlama",
-      "gpt-3.5"
+      "GPT-4",
+      "CodeLlama",
+      "GPT-3.5"
     ],
     "Yael Mizrahi": [
-      "claude",
-      "gpt-4"
+      "Claude",
+      "GPT-4"
     ],
     "Eli Ben-David": [
-      "codeLlama",
-      "gpt-3.5"
+      "CodeLlama",
+      "GPT-3.5"
     ],
     "Shira Katz": [
-      "gpt-3.5",
-      "gemini"
+      "GPT-3.5",
+      "Gemini"
     ],
     "Omer Klein": [
-      "claude",
-      "gpt-3.5"
+      "Claude",
+      "GPT-3.5"
     ],
     "Tamar Shaked": [
-      "gemini",
-      "claude",
-      "gpt-4"
+      "Gemini",
+      "Claude",
+      "GPT-4"
     ],
     "Ron Golan": [
-      "gpt-4",
-      "codeLlama",
-      "claude"
+      "GPT-4",
+      "CodeLlama",
+      "Claude"
     ],
     "Lior Avraham": [
-      "gemini",
-      "codeLlama"
+      "Gemini",
+      "CodeLlama"
     ],
     "Dana Bar": [
-      "gpt-4",
-      "gpt-3.5",
-      "gemini"
+      "GPT-4",
+      "GPT-3.5",
+      "Gemini"
     ],
     "Yossi Harel": [
-      "gpt-3.5",
-      "gpt-4"
+      "GPT-3.5",
+      "GPT-4"
     ],
     "Adi Friedman": [
-      "codeLlama",
-      "gemini",
-      "gpt-3.5"
+      "CodeLlama",
+      "Gemini",
+      "GPT-3.5"
     ],
     "Guy Niv": [
-      "gpt-4",
-      "codeLlama"
+      "GPT-4",
+      "CodeLlama"
     ],
     "Neta Weiss": [
-      "gemini",
-      "gpt-4"
+      "Gemini",
+      "GPT-4"
     ],
     "Ido Sharabi": [
-      "gpt-4",
-      "gpt-3.5"
+      "GPT-4",
+      "GPT-3.5"
     ],
     "Hila Mor": [
-      "gpt-3.5",
-      "gemini",
-      "gpt-4"
+      "GPT-3.5",
+      "Gemini",
+      "GPT-4"
     ],
     "Barak Tal": [
-      "gemini",
-      "claude",
-      "codeLlama"
+      "Gemini",
+      "Claude",
+      "CodeLlama"
     ],
     "Chen Azulay": [
-      "gpt-4",
-      "claude",
-      "gemini"
+      "GPT-4",
+      "Claude",
+      "Gemini"
     ]
   }
 }

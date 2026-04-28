@@ -75,14 +75,27 @@ Additionally, the following is calculated:
 cost_performance_point = estimated_cost / max(score, 1.0)
 ```
 
-And the cost (`estimated_cost`) is:
+Token estimate:
 
 ```
-(input_tokens / 1e6) * input_price + (output_tokens / 1e6) * output_price
+estimated_tokens = lines * 15
 ```
 
-Where `input_tokens` and `output_tokens` are estimated from signals such as:
-`revisions`, `comments`, `overrides`, `bugFixes`, and the prices are taken from `pricing.json`.
+Cost (`estimated_cost`) follows subscription-aware logic:
+
+1) If the developer used a model they are subscribed to:
+
+```
+estimated_cost = subscription_cost / number_of_commits_by_that_author_on_that_model
+```
+
+2) If they used a model they are not subscribed to:
+
+```
+estimated_cost = (estimated_tokens / 1e6) * cost_per_million
+```
+
+`cost_per_million` and `subscription_cost` are taken from `pricing.json`.
 
 ---
 

@@ -13,14 +13,6 @@ MODELS = {
     "CodeLlama": 0.62
 }
 
-MODEL_SUBSCRIPTION_LABELS = {
-    "GPT-4": "gpt-4",
-    "Claude": "claude",
-    "Gemini": "gemini",
-    "GPT-3.5": "gpt-3.5",
-    "CodeLlama": "codeLlama"
-}
-
 SENIORITY = {
     "Junior": 0.55,
     "2": 0.65,
@@ -241,7 +233,7 @@ def generate_mock_data(num_commits=1000):
                 commit["bugFixOverridesCount"] = bug_fix_count
 
     subscriptions_payload = {
-        author: [MODEL_SUBSCRIPTION_LABELS[model] for model in subscribed]
+        author: list(subscribed)
         for author, subscribed in author_subscriptions.items()
     }
     return {
