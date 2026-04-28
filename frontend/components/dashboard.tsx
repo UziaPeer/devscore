@@ -910,9 +910,9 @@ export function Dashboard() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8 }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: 18 }}>AI Strategy Studio</h3>
-                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
-                  {aiState.model ? `Model: ${aiState.model}` : "Generate insights, recommendations and Q&A answers"}
+                <h3 style={{ margin: 0, fontSize: 21, lineHeight: 1.1, letterSpacing: 0.1 }}>AI Strategy Studio</h3>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6, maxWidth: 520, lineHeight: 1.4 }}>
+                  Fast insights from your current filters.
                 </div>
               </div>
               <button
@@ -936,20 +936,6 @@ export function Dashboard() {
                 <Sparkles size={16} />
                 {aiState.loading ? "Running AI..." : "Run AI Analysis"}
               </button>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <div style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)", borderRadius: 999, padding: "4px 10px", fontSize: 12 }}>
-                Insights: {aiState.insights.length}
-              </div>
-              <div style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)", borderRadius: 999, padding: "4px 10px", fontSize: 12 }}>
-                Recommendations: {aiState.recommendations.length}
-              </div>
-              <div style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)", borderRadius: 999, padding: "4px 10px", fontSize: 12 }}>
-                Q&A: {aiState.queryResults.length}
-              </div>
-              <div style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)", borderRadius: 999, padding: "4px 10px", fontSize: 12 }}>
-                Categories: {aiState.categories.length}
-              </div>
             </div>
           </div>
 
