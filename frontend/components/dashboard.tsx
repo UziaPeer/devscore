@@ -28,7 +28,7 @@ type ModelMetricTab =
   | "iterations"
   | "usage"
   | "cost"
-  | "performance"
+  | "evs"
   | "roi";
 
 const MODEL_METRIC_CONFIG: Record<
@@ -43,7 +43,7 @@ const MODEL_METRIC_CONFIG: Record<
       | "avg_iterations_raw"
       | "estimated_tokens"
       | "estimated_spend"
-      | "avg_performance_score"
+      | "estimated_value_saved"
       | "roi_score";
     higherIsBetter: boolean;
     deltaKey?:
@@ -51,7 +51,6 @@ const MODEL_METRIC_CONFIG: Record<
       | "vs_human_bug_fix_count_delta"
       | "vs_human_lead_time_hours_delta"
       | "vs_human_iterations_raw_delta"
-      | "vs_human_performance_delta"
       | "vs_human_roi_delta";
     yFormatter?: (value: number) => string;
     valueFormatter?: (value: number) => string;
@@ -120,15 +119,15 @@ const MODEL_METRIC_CONFIG: Record<
     tooltip:
       "If the developer has a subscription to this model, we use their subscription cost. If not, we charge by usage. Bigger commits cost more in usage mode. Lower is better."
   },
-  performance: {
-    label: "Performance",
-    title: "Performance Score by Model",
-    dataKey: "avg_performance_score",
+  evs: {
+    label: "EVS",
+    title: "Estimated Value Saved by Model",
+    dataKey: "estimated_value_saved",
     higherIsBetter: true,
-    deltaKey: "vs_human_performance_delta",
-    valueFormatter: (value) => value.toFixed(2),
+    yFormatter: (value) => `$${value.toFixed(0)}`,
+    valueFormatter: (value) => `$${value.toFixed(2)}`,
     tooltip:
-      "Final weighted performance compared to Human baseline. Formula weights: Longevity 35%, Bug Fix 30%, Lead Time 20%, Iterations 15%. Higher is better."
+      "Estimated business value saved by model, based on estimated engineering hours saved multiplied by hourly cost by seniority. Higher is better."
   },
   roi: {
     label: "ROI",
@@ -561,7 +560,7 @@ export function Dashboard() {
   const sortedModelData = useMemo(() => {
     const dataKey = modelChartConfig.dataKey;
     const direction = modelChartTab === "usage" ? -1 : modelChartConfig.higherIsBetter ? -1 : 1;
-    const hideHumanTabs: ModelMetricTab[] = ["usage", "cost", "roi"];
+    const hideHumanTabs: ModelMetricTab[] = ["usage", "cost", "evs", "roi"];
     const modelRows = hideHumanTabs.includes(modelChartTab) ? byModel.filter((row) => row.value !== "Human") : byModel;
     return [...modelRows].sort((left, right) => {
       const leftValue = Number(left[dataKey]);
