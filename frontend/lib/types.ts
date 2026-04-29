@@ -15,6 +15,9 @@ export type Summary = {
   avg_lead_time_hours: number;
   avg_bug_fix_count: number;
   cost_per_performance_point: number;
+  estimated_hours_saved: number;
+  estimated_value_saved: number;
+  financial_roi: number;
   best_model_by_roi: string | null;
 };
 
@@ -45,6 +48,9 @@ export type BreakdownItem = {
   avg_lead_time_hours: number;
   avg_cost_per_commit: number;
   cost_per_performance_point: number;
+  estimated_hours_saved: number;
+  estimated_value_saved: number;
+  cost_per_hour_saved: number;
   vs_human_performance_delta?: number | null;
   vs_human_longevity_days_delta?: number | null;
   vs_human_bug_fix_count_delta?: number | null;

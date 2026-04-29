@@ -15,6 +15,9 @@ const emptySummary: Summary = {
   avg_lead_time_hours: 0,
   avg_bug_fix_count: 0,
   cost_per_performance_point: 0,
+  estimated_hours_saved: 0,
+  estimated_value_saved: 0,
+  financial_roi: 0,
   best_model_by_roi: null
 };
 
@@ -129,13 +132,13 @@ const MODEL_METRIC_CONFIG: Record<
   },
   roi: {
     label: "ROI",
-    title: "ROI by Model",
+    title: "Financial ROI by Model",
     dataKey: "roi_score",
     higherIsBetter: true,
     deltaKey: "vs_human_roi_delta",
     valueFormatter: (value) => value.toFixed(2),
     tooltip:
-      "Performance gained per spend, compared to Human baseline. Higher is better."
+      "Estimated dollars saved per AI dollar spent. Based on conservative engineering friction saved versus the Human baseline. Higher is better."
   }
 };
 
@@ -186,12 +189,27 @@ type AiPanelState = {
   error: string | null;
 };
 
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+
+const wholeNumberFormatter = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 0
+});
+
 function money(value: number): string {
-  return `$${value.toFixed(4)}`;
+  return currencyFormatter.format(value);
 }
 
 function moneySuffix(value: number): string {
-  return `${value.toFixed(4)}$`;
+  return money(value);
+}
+
+function wholeNumber(value: number): string {
+  return wholeNumberFormatter.format(value);
 }
 
 function SelectField({
@@ -840,8 +858,8 @@ export function Dashboard() {
 
       <section className="kpi-grid">
         <KpiCard title="Estimated Spend" value={money(summary.total_spend)} icon={<Coins size={18} />} />
-        <KpiCard title="Performance Score" value={summary.avg_performance_score.toFixed(2)} icon={<ChartNoAxesCombined size={18} />} />
-        <KpiCard title="Cost / Performance Point" value={money(summary.cost_per_performance_point)} icon={<Coins size={18} />} />
+        <KpiCard title="Estimated Hours Saved" value={wholeNumber(summary.estimated_hours_saved)} icon={<ChartNoAxesCombined size={18} />} />
+        <KpiCard title="Estimated Value Saved" value={money(summary.estimated_value_saved)} icon={<Coins size={18} />} />
         <KpiCard title="Best ROI Model" value={summary.best_model_by_roi ?? "N/A"} icon={<Bot size={18} />} />
       </section>
 

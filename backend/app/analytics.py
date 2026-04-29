@@ -18,6 +18,14 @@ WEIGHTS = {
     "iterations": 0.15,
 }
 
+HOURLY_RATE_BY_SENIORITY = {
+    "Junior": 35.0,
+    "2": 50.0,
+    "3": 70.0,
+    "4": 90.0,
+    "Senior": 120.0,
+}
+
 
 def _parse_date(raw: str) -> datetime:
     return datetime.fromisoformat(raw.replace("Z", "+00:00"))
@@ -65,6 +73,17 @@ def _seniority_sort_key(value: str) -> tuple[int, str]:
         "senior": 5,
     }
     return (order.get(normalized, 999), normalized)
+
+
+def _estimated_friction_hours(item: dict[str, Any]) -> float:
+    short_lived_penalty = min(max(0.0, 14.0 - float(item.get("longevity_days", 0.0))) * 0.02, 0.25)
+    return (
+        float(item.get("lead_time_hours", 0.0)) * 0.005
+        + int(item.get("revisions", 0)) * 0.20
+        + int(item.get("comments", 0)) * 0.025
+        + int(item.get("bug_fix_count", 0)) * 0.40
+        + short_lived_penalty
+    )
 
 
 def load_enriched_commits() -> list[dict[str, Any]]:
@@ -194,6 +213,51 @@ def load_enriched_commits() -> list[dict[str, Any]]:
         item["cost_performance_point"] = round(item["estimated_cost"] / max(performance_score, 1.0), 6)
         item["roi_score"] = round(performance_score / max(item["estimated_cost"], 0.000001), 2)
 
+    human_rows = [item for item in commits if str(item.get("model", "")).strip().lower() == "human"]
+    baseline_by_team_seniority: dict[tuple[str, str], list[float]] = {}
+    baseline_by_seniority: dict[str, list[float]] = {}
+
+    for item in human_rows:
+        friction_hours = _estimated_friction_hours(item)
+        seniority = str(item.get("seniority", ""))
+        team = str(item.get("team", ""))
+        baseline_by_team_seniority.setdefault((team, seniority), []).append(friction_hours)
+        baseline_by_seniority.setdefault(seniority, []).append(friction_hours)
+
+    global_baseline = (
+        sum(_estimated_friction_hours(item) for item in human_rows) / len(human_rows)
+        if human_rows
+        else 0.0
+    )
+
+    def _average(values: list[float]) -> float:
+        return sum(values) / len(values) if values else 0.0
+
+    for item in commits:
+        model_name = str(item.get("model", "")).strip().lower()
+        seniority = str(item.get("seniority", ""))
+        team = str(item.get("team", ""))
+        hourly_rate = float(HOURLY_RATE_BY_SENIORITY.get(seniority, 70.0))
+        actual_friction_hours = _estimated_friction_hours(item)
+
+        baseline_hours = _average(baseline_by_team_seniority.get((team, seniority), []))
+        if baseline_hours <= 0:
+            baseline_hours = _average(baseline_by_seniority.get(seniority, []))
+        if baseline_hours <= 0:
+            baseline_hours = global_baseline
+
+        hours_saved = 0.0 if model_name == "human" else baseline_hours - actual_friction_hours
+        value_saved = hours_saved * hourly_rate
+        ai_cost = float(item.get("estimated_cost", 0.0))
+
+        item["hourly_rate"] = round(hourly_rate, 2)
+        item["estimated_friction_hours"] = round(actual_friction_hours, 2)
+        item["human_baseline_friction_hours"] = round(baseline_hours, 2)
+        item["estimated_hours_saved"] = round(hours_saved, 2)
+        item["estimated_value_saved"] = round(value_saved, 2)
+        item["roi_score"] = round(value_saved / max(ai_cost, 0.000001), 2) if model_name != "human" else 0.0
+        item["cost_per_hour_saved"] = round(ai_cost / hours_saved, 4) if hours_saved > 0 else 0.0
+
     return commits
 
 
@@ -239,6 +303,9 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "avg_lead_time_hours": 0.0,
             "avg_bug_fix_count": 0.0,
             "cost_per_performance_point": 0.0,
+            "estimated_hours_saved": 0.0,
+            "estimated_value_saved": 0.0,
+            "financial_roi": 0.0,
             "best_model_by_roi": None,
         }
 
@@ -247,6 +314,8 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     avg_performance = sum(item["performance_score"] for item in rows) / total_commits
     avg_lead_time = sum(item["lead_time_hours"] for item in rows) / total_commits
     avg_bug_fix = sum(item["bug_fix_count"] for item in rows) / total_commits
+    total_hours_saved = sum(float(item.get("estimated_hours_saved", 0.0)) for item in rows)
+    total_value_saved = sum(float(item.get("estimated_value_saved", 0.0)) for item in rows)
 
     by_model: dict[str, list[dict[str, Any]]] = {}
     for item in rows:
@@ -258,8 +327,8 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if str(model_name).strip().lower() == "human":
             continue
         group_spend = sum(entry["estimated_cost"] for entry in group)
-        group_perf = sum(entry["performance_score"] for entry in group)
-        value = group_perf / max(group_spend, 0.000001)
+        group_value_saved = sum(float(entry.get("estimated_value_saved", 0.0)) for entry in group)
+        value = group_value_saved / max(group_spend, 0.000001)
         if value > best_value:
             best_value = value
             best_model = model_name
@@ -272,6 +341,9 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "avg_lead_time_hours": round(avg_lead_time, 2),
         "avg_bug_fix_count": round(avg_bug_fix, 2),
         "cost_per_performance_point": round(total_spend / max(sum(item["performance_score"] for item in rows), 1.0), 6),
+        "estimated_hours_saved": round(total_hours_saved, 2),
+        "estimated_value_saved": round(total_value_saved, 2),
+        "financial_roi": round(total_value_saved / max(total_spend, 0.000001), 2),
         "best_model_by_roi": best_model,
     }
 
@@ -302,7 +374,9 @@ def breakdown(rows: list[dict[str, Any]], dimension: str) -> list[dict[str, Any]
         bug_fix_score = sum(item["bug_fix_score"] for item in group_rows) / commits
         lead_time_score = sum(item["lead_time_score"] for item in group_rows) / commits
         iterations_score = sum(item["iterations_score"] for item in group_rows) / commits
-        roi_score = performance / max(spend, 0.000001)
+        hours_saved = sum(float(item.get("estimated_hours_saved", 0.0)) for item in group_rows)
+        value_saved = sum(float(item.get("estimated_value_saved", 0.0)) for item in group_rows)
+        roi_score = value_saved / max(spend, 0.000001) if spend > 0 else 0.0
         response.append(
             {
                 "dimension": dimension,
@@ -333,6 +407,9 @@ def breakdown(rows: list[dict[str, Any]], dimension: str) -> list[dict[str, Any]
                 "avg_lead_time_hours": round(sum(item["lead_time_hours"] for item in group_rows) / commits, 2),
                 "avg_cost_per_commit": round(spend / commits, 6),
                 "cost_per_performance_point": round(spend / max(performance, 1.0), 6),
+                "estimated_hours_saved": round(hours_saved, 2),
+                "estimated_value_saved": round(value_saved, 2),
+                "cost_per_hour_saved": round(spend / hours_saved, 4) if hours_saved > 0 else 0.0,
             }
         )
 

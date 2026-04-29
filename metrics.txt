@@ -100,3 +100,66 @@ estimated_cost = (estimated_tokens / 1e6) * cost_per_million
 ---
 
 The actual implementation is in `analytics.py`.
+
+---
+
+## ROI calculation
+
+This ROI is based on a simple question:
+
+**How much engineering effort did AI save, and what is that worth in money?**
+
+### 1) Estimated Hours Saved
+
+For each commit, we first estimate small "engineering friction hours":
+
+```
+friction_hours =
+  lead_time_hours * 0.005
+  + revisionsBeforeMerge * 0.20
+  + commentsBeforeMerge * 0.025
+  + bugFixOverridesCount * 0.40
+  + short_lived_penalty
+```
+
+Then we compare AI commits to a Human baseline:
+
+```
+estimated_hours_saved = human_baseline_friction_hours - ai_friction_hours
+```
+
+How the Human baseline is selected:
+
+1. Same `team` + same `seniority`
+2. If missing, same `seniority`
+3. If still missing, global Human average
+
+### 2) Estimated Value Saved
+
+We convert saved hours to money using hourly cost by seniority:
+
+```
+Junior = $35/h
+2 = $50/h
+3 = $70/h
+4 = $90/h
+Senior = $120/h
+```
+
+Formula:
+
+```
+estimated_value_saved = estimated_hours_saved * hourly_rate_by_seniority
+```
+
+### 3) ROI
+
+ROI is financial return per AI dollar spent:
+
+```
+roi = estimated_value_saved / estimated_cost
+```
+
+Interpretation:
+
+- `ROI = 3` means every `$1` spent on AI returned about `$3` in estimated engineering value.
