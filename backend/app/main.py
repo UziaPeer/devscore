@@ -48,6 +48,22 @@ class DataSourceResponse(BaseModel):
     updated_at: str
 
 
+class QuickAIPayload(BaseModel):
+    summary: dict[str, Any]
+    by_model: list[dict[str, Any]]
+    by_project: list[dict[str, Any]]
+    trend_points: list[dict[str, Any]]
+    question: str | None = None
+
+
+class QuickAIResponse(BaseModel):
+    insights: list[dict[str, Any]]
+    recommendations: list[dict[str, Any]]
+    query_results: list[dict[str, Any]]
+    categories: list[dict[str, Any]]
+    model: str
+
+
 app = FastAPI(
     title="DevScore API",
     description="AI cost and PR outcome analytics.",
@@ -355,6 +371,7 @@ def ai_recommendations(filters: FilterPayload) -> AIResponse:
 @app.post("/ai/categorize", response_model=AIResponse)
 def ai_categorize(filters: FilterPayload) -> AIResponse:
     rows = _filtered_rows(filters)[:80]
+    row_by_hash = {row["hash"]: row for row in rows}
     context_rows = [
         {
             "hash": row["hash"],
@@ -371,14 +388,120 @@ def ai_categorize(filters: FilterPayload) -> AIResponse:
     payload = _run_ai_json(
         prompt=(
             "Classify commit usage quality. Return JSON with key 'items'. "
-            "Each item: hash, category, reason. Categories: high-value, review-heavy, bug-prone, fast-delivery."
+            "Each item: hash, category. Categories: high-value, review-heavy, bug-prone, fast-delivery."
         ),
         payload={"rows": context_rows},
     )
-    items = payload.get("items", [])
-    if not isinstance(items, list):
+
+
+def _strip_cost_performance_point(payload: Any) -> Any:
+    if isinstance(payload, dict):
+        return {
+            key: _strip_cost_performance_point(value)
+            for key, value in payload.items()
+            if key != "cost_per_performance_point"
+        }
+    if isinstance(payload, list):
+        return [_strip_cost_performance_point(item) for item in payload]
+    return payload
+
+
+def _build_category_summary_from_breakdown(by_model: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    categories = ("high-value", "review-heavy", "bug-prone", "fast-delivery")
+    summary: list[dict[str, Any]] = []
+
+    for row in by_model:
+        model_name = str(row.get("value", "Unknown"))
+        commits = int(row.get("commits", 0))
+        if commits <= 0 or model_name.lower() == "human":
+            continue
+
+        avg_perf = float(row.get("avg_performance_score", 0.0))
+        avg_bug = float(row.get("avg_bug_fix_count", 0.0))
+        avg_iter = float(row.get("avg_iterations_raw", 0.0))
+        avg_lead = float(row.get("avg_lead_time_hours", 0.0))
+
+        weights = {
+            "high-value": max(avg_perf, 0.0),
+            "review-heavy": max(avg_iter, 0.0) * 18.0,
+            "bug-prone": max(avg_bug, 0.0) * 30.0,
+            "fast-delivery": max(120.0 - avg_lead, 0.0),
+        }
+        weight_sum = sum(weights.values()) or 1.0
+
+        distribution: list[dict[str, Any]] = []
+        allocated = 0
+        for index, category_name in enumerate(categories):
+            percentage = (weights[category_name] / weight_sum) * 100.0
+            if index < len(categories) - 1:
+                category_commits = int(round((commits * percentage) / 100.0))
+                allocated += category_commits
+            else:
+                category_commits = max(commits - allocated, 0)
+            distribution.append(
+                {
+                    "category": category_name,
+                    "commits": category_commits,
+                    "percentage": round((category_commits / commits) * 100.0 if commits else 0.0, 2),
+                }
+            )
+
+        summary.append(
+            {
+                "model": model_name,
+                "total_commits": commits,
+                "breakdown": distribution,
+            }
+        )
+    return summary
+    raw_items = payload.get("items", [])
+    if not isinstance(raw_items, list):
         raise HTTPException(status_code=502, detail="AI output did not include 'items' list.")
-    return AIResponse(items=items, model=payload["model"])
+
+    allowed_categories = ("high-value", "review-heavy", "bug-prone", "fast-delivery")
+    by_model_counts: dict[str, dict[str, int]] = {}
+    by_model_total: dict[str, int] = {}
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        item_hash = item.get("hash")
+        category = item.get("category")
+        if not isinstance(item_hash, str) or not isinstance(category, str):
+            continue
+        row = row_by_hash.get(item_hash)
+        if row is None:
+            continue
+        normalized_category = category.strip().lower()
+        if normalized_category not in allowed_categories:
+            continue
+        model_name = str(row.get("model", "Unknown"))
+        model_counts = by_model_counts.setdefault(model_name, {name: 0 for name in allowed_categories})
+        model_counts[normalized_category] += 1
+        by_model_total[model_name] = by_model_total.get(model_name, 0) + 1
+
+    summary_items: list[dict[str, Any]] = []
+    for model_name in sorted(by_model_counts.keys()):
+        total = max(by_model_total.get(model_name, 0), 1)
+        breakdown = []
+        for category_name in allowed_categories:
+            count = by_model_counts[model_name].get(category_name, 0)
+            pct = round((count / total) * 100.0, 2)
+            breakdown.append(
+                {
+                    "category": category_name,
+                    "commits": count,
+                    "percentage": pct,
+                }
+            )
+        summary_items.append(
+            {
+                "model": model_name,
+                "total_commits": by_model_total.get(model_name, 0),
+                "breakdown": breakdown,
+            }
+        )
+
+    return AIResponse(items=summary_items, model=payload["model"])
 
 
 @app.post("/ai/query", response_model=AIResponse)
@@ -403,3 +526,37 @@ def ai_query(payload: QueryPayload) -> AIResponse:
     if not isinstance(items, list):
         raise HTTPException(status_code=502, detail="AI output did not include 'items' list.")
     return AIResponse(items=items, model=output["model"])
+
+
+@app.post("/ai/quick", response_model=QuickAIResponse)
+def ai_quick(payload: QuickAIPayload) -> QuickAIResponse:
+    cleaned_payload = _strip_cost_performance_point(payload.model_dump())
+    by_model = cleaned_payload.get("by_model", [])
+    categories = _build_category_summary_from_breakdown(by_model if isinstance(by_model, list) else [])
+
+    ai_output = _run_ai_json(
+        prompt=(
+            "You are an engineering analytics assistant. Use only the provided dashboard snapshot. "
+            "Do not use cost_per_performance_point at all. "
+            "Return compact JSON with keys: insights, recommendations, query_results. "
+            "insights: up to 5 items with title, finding, confidence. "
+            "recommendations: up to 5 items with action, rationale, risk_level. "
+            "query_results: up to 3 items with answer, supporting_data, confidence."
+        ),
+        payload=cleaned_payload,
+    )
+
+    insights = ai_output.get("insights", [])
+    recommendations = ai_output.get("recommendations", [])
+    query_results = ai_output.get("query_results", [])
+
+    if not isinstance(insights, list) or not isinstance(recommendations, list) or not isinstance(query_results, list):
+        raise HTTPException(status_code=502, detail="AI quick output format was invalid.")
+
+    return QuickAIResponse(
+        insights=insights,
+        recommendations=recommendations,
+        query_results=query_results,
+        categories=categories,
+        model=ai_output["model"],
+    )

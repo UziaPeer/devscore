@@ -63,6 +63,37 @@ export async function postAI(path: string, filters: Filters & { question?: strin
   return (await response.json()) as { items: AIItem[]; model: string };
 }
 
+export async function postAIQuick(snapshot: {
+  summary: Record<string, unknown>;
+  by_model: Record<string, unknown>[];
+  by_project: Record<string, unknown>[];
+  trend_points: Record<string, unknown>[];
+  question?: string;
+}): Promise<{
+  insights: AIItem[];
+  recommendations: AIItem[];
+  query_results: AIItem[];
+  categories: AIItem[];
+  model: string;
+}> {
+  const response = await fetch(`${API_BASE}/ai/quick`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(snapshot)
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `AI quick request failed with ${response.status}`);
+  }
+  return (await response.json()) as {
+    insights: AIItem[];
+    recommendations: AIItem[];
+    query_results: AIItem[];
+    categories: AIItem[];
+    model: string;
+  };
+}
+
 export async function getDataSource(): Promise<DataSourceInfo> {
   return fetchJson<DataSourceInfo>("/data/source");
 }

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Bot, ChartNoAxesCombined, ChevronDown, Coins, FileUp, Filter, MessageSquareText, Sparkles } from "lucide-react";
 
-import { getBreakdown, getDataSource, getOptions, getSummary, getTrend, postAI, uploadDataSource } from "../lib/api";
+import { getBreakdown, getDataSource, getOptions, getSummary, getTrend, postAIQuick, uploadDataSource } from "../lib/api";
 import type { AIItem, BreakdownItem, DataSourceInfo, Filters, OptionsPayload, Summary, TrendPayload } from "../lib/types";
 
 const emptySummary: Summary = {
@@ -355,6 +355,37 @@ function extractMessage(aiItem: AIItem): string {
   return typeof text === "string" ? text : JSON.stringify(aiItem);
 }
 
+function toTitleCase(value: string): string {
+  return value
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("-");
+}
+
+function renderCategorySummary(item: AIItem): React.ReactNode {
+  const modelName = typeof item.model === "string" ? item.model : "Unknown";
+  const breakdown = Array.isArray(item.breakdown) ? item.breakdown : [];
+
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <div style={{ fontSize: 18, fontWeight: 800 }}>{modelName}</div>
+      {breakdown.map((entry, index) => {
+        if (!entry || typeof entry !== "object") {
+          return null;
+        }
+        const categoryRaw = typeof entry.category === "string" ? entry.category : "unknown";
+        const commits = typeof entry.commits === "number" ? entry.commits : 0;
+        const percentage = typeof entry.percentage === "number" ? entry.percentage : 0;
+        return (
+          <div key={`${modelName}-${categoryRaw}-${index}`} style={{ fontSize: 14 }}>
+            <span style={{ fontWeight: 700 }}>{toTitleCase(categoryRaw)}:</span> {commits} commits ({percentage.toFixed(2)}%)
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function formatDelta(value: number, formatter?: (value: number) => string): string {
   const sign = value > 0 ? "+" : "";
   if (formatter) {
@@ -534,19 +565,20 @@ export function Dashboard() {
   async function runAiActions() {
     setAiState((previous) => ({ ...previous, loading: true, error: null }));
     try {
-      const [insights, recommendations, categories, queryResults] = await Promise.all([
-        postAI("/ai/insights", filters),
-        postAI("/ai/recommendations", filters),
-        postAI("/ai/categorize", filters),
-        postAI("/ai/query", { ...filters, question: query })
-      ]);
+      const quickResponse = await postAIQuick({
+        summary,
+        by_model: byModel,
+        by_project: byProject,
+        trend_points: trend.points,
+        question: query
+      });
 
       setAiState({
-        insights: insights.items,
-        recommendations: recommendations.items,
-        categories: categories.items.slice(0, 5),
-        queryResults: queryResults.items,
-        model: insights.model,
+        insights: quickResponse.insights,
+        recommendations: quickResponse.recommendations,
+        categories: quickResponse.categories,
+        queryResults: quickResponse.query_results,
+        model: quickResponse.model,
         loading: false,
         error: null
       });
@@ -1057,7 +1089,7 @@ export function Dashboard() {
                       boxShadow: "0 1px 4px rgba(0, 0, 33, 0.05)"
                     }}
                   >
-                    {extractMessage(item)}
+                    {activeAiTab === "categories" ? renderCategorySummary(item) : extractMessage(item)}
                   </div>
                 ))
               )}
