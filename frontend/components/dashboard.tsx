@@ -988,7 +988,7 @@ export function Dashboard() {
                             </div>
                           </>
                         )}
-                        {deltaKey && row.value !== "Human" && typeof deltaValue === "number" && (
+                        {deltaKey && modelChartTab !== "roi" && row.value !== "Human" && typeof deltaValue === "number" && (
                           <div style={{ color: "var(--text-muted)" }}>
                             vs Human: {formatDelta(deltaValue, modelChartConfig.valueFormatter)}
                           </div>
