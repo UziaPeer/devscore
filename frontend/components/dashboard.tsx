@@ -459,7 +459,8 @@ export function Dashboard() {
   const sortedModelData = useMemo(() => {
     const dataKey = modelChartConfig.dataKey;
     const direction = modelChartConfig.higherIsBetter ? -1 : 1;
-    const modelRows = modelChartTab === "cost" ? byModel.filter((row) => row.value !== "Human") : byModel;
+    const hideHumanTabs: ModelMetricTab[] = ["cost", "roi"];
+    const modelRows = hideHumanTabs.includes(modelChartTab) ? byModel.filter((row) => row.value !== "Human") : byModel;
     return [...modelRows].sort((left, right) => {
       const leftValue = Number(left[dataKey]);
       const rightValue = Number(right[dataKey]);

@@ -77,7 +77,6 @@ def load_enriched_commits() -> list[dict[str, Any]]:
 
     primary_subscriptions = raw_payload.get("subscriptions", raw_payload.get("subscription", {}))
     control_subscriptions = control_payload.get("subscriptions", control_payload.get("subscription", {})) if control_payload else {}
-    raw_subscriptions = {**primary_subscriptions, **control_subscriptions}
     pricing = _load_json(PRICING_PATH)
     default_pricing = pricing.get("_default", {"cost_per_million": 3.0, "subscription_cost": 60.0})
     pricing_model_keys = {
@@ -85,17 +84,18 @@ def load_enriched_commits() -> list[dict[str, Any]]:
     }
 
     subscriptions_by_author: dict[str, set[str]] = {}
-    if isinstance(raw_subscriptions, dict):
-        for author_name, model_names in raw_subscriptions.items():
+    for source_subscriptions in (primary_subscriptions, control_subscriptions):
+        if not isinstance(source_subscriptions, dict):
+            continue
+        for author_name, model_names in source_subscriptions.items():
             if not isinstance(model_names, list):
                 continue
-            normalized_models = set()
+            normalized_models = subscriptions_by_author.setdefault(author_name, set())
             for model_name in model_names:
                 if not isinstance(model_name, str):
                     continue
                 normalized = _normalize_model_key(model_name)
                 normalized_models.add(pricing_model_keys.get(normalized, model_name))
-            subscriptions_by_author[author_name] = normalized_models
 
     commits: list[dict[str, Any]] = []
     subscribed_usage_counts: dict[tuple[str, str], int] = {}
@@ -255,6 +255,8 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     best_model = None
     best_value = float("-inf")
     for model_name, group in by_model.items():
+        if str(model_name).strip().lower() == "human":
+            continue
         group_spend = sum(entry["estimated_cost"] for entry in group)
         group_perf = sum(entry["performance_score"] for entry in group)
         value = group_perf / max(group_spend, 0.000001)
