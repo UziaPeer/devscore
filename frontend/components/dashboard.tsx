@@ -537,6 +537,10 @@ export function Dashboard() {
       return leftNumber - rightNumber;
     });
   }, [filters.quarter, options.sprints, options.quarter_sprints]);
+  const projectsByRoi = useMemo(
+    () => [...byProject].sort((left, right) => right.roi_score - left.roi_score),
+    [byProject]
+  );
 
   useEffect(() => {
     const selectedProjects = filters.project ?? [];
@@ -1106,16 +1110,16 @@ export function Dashboard() {
                   <th style={{ textAlign: "left", padding: 8 }}>Project</th>
                   <th style={{ textAlign: "right", padding: 8 }}>Spend</th>
                   <th style={{ textAlign: "right", padding: 8 }}>Perf</th>
-                  <th style={{ textAlign: "right", padding: 8 }}>Cost/Perf</th>
+                  <th style={{ textAlign: "right", padding: 8 }}>ROI</th>
                 </tr>
               </thead>
               <tbody>
-                {byProject.slice(0, 8).map((item) => (
+                {projectsByRoi.map((item) => (
                   <tr key={item.value} style={{ borderBottom: "1px solid var(--border)" }}>
                     <td style={{ padding: 8, fontWeight: 600 }}>{item.value}</td>
                     <td style={{ padding: 8, textAlign: "right" }}>{money(item.estimated_spend)}</td>
                     <td style={{ padding: 8, textAlign: "right" }}>{item.avg_performance_score.toFixed(2)}</td>
-                    <td style={{ padding: 8, textAlign: "right" }}>{money(item.cost_per_performance_point)}</td>
+                    <td style={{ padding: 8, textAlign: "right" }}>{item.roi_score.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
