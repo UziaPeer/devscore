@@ -374,6 +374,13 @@ function toTitleCase(value: string): string {
     .join("-");
 }
 
+const CATEGORY_TOOLTIP: Record<string, string> = {
+  "high-value": " Strong overall outcome with good quality signals.",
+  "review-heavy": " Needed more review rounds before merge.",
+  "bug-prone": " Had higher bug-fix pressure after merge.",
+  "fast-delivery": " Moved quickly from commit to merge."
+};
+
 function renderCategorySummary(item: AIItem): React.ReactNode {
   const modelName = typeof item.model === "string" ? item.model : "Unknown";
   const breakdown = Array.isArray(item.breakdown) ? item.breakdown : [];
@@ -388,9 +395,37 @@ function renderCategorySummary(item: AIItem): React.ReactNode {
         const categoryRaw = typeof entry.category === "string" ? entry.category : "unknown";
         const commits = typeof entry.commits === "number" ? entry.commits : 0;
         const percentage = typeof entry.percentage === "number" ? entry.percentage : 0;
+        const tooltipText = CATEGORY_TOOLTIP[categoryRaw] ?? "Category classification from the current filtered data.";
         return (
           <div key={`${modelName}-${categoryRaw}-${index}`} style={{ fontSize: 14 }}>
-            <span style={{ fontWeight: 700 }}>{toTitleCase(categoryRaw)}:</span> {commits} commits ({percentage.toFixed(2)}%)
+            <span style={{ fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
+              {toTitleCase(categoryRaw)}:
+              <span className="metric-info-wrap">
+                <span
+                  style={{
+                    fontSize: 10,
+                    lineHeight: "14px",
+                    width: 14,
+                    height: 14,
+                    borderRadius: 999,
+                    border: "1px solid var(--border)",
+                    textAlign: "center",
+                    color: "var(--text-muted)",
+                    cursor: "help",
+                    userSelect: "none",
+                    display: "inline-block",
+                    backgroundColor: "var(--surface)"
+                  }}
+                >
+                  i
+                </span>
+                <span className="metric-info-tooltip" role="tooltip" aria-label={toTitleCase(categoryRaw)}>
+                  <span className="metric-info-title">{toTitleCase(categoryRaw)}</span>
+                  <span className="metric-info-body">{tooltipText}</span>
+                </span>
+              </span>
+            </span>{" "}
+            {commits} commits ({percentage.toFixed(2)}%)
           </div>
         );
       })}
@@ -464,7 +499,7 @@ export function Dashboard() {
   const [byProject, setByProject] = useState<BreakdownItem[]>([]);
   const [modelChartTab, setModelChartTab] = useState<ModelMetricTab>("roi");
   const [backendError, setBackendError] = useState<string | null>(null);
-  const [query, setQuery] = useState("Which project has the worst cost per performance point?");
+  const [query, setQuery] = useState("Which project has the worst cost per performance?");
   const [aiState, setAiState] = useState<AiPanelState>({
     insights: [],
     recommendations: [],
