@@ -287,6 +287,13 @@ def breakdown(rows: list[dict[str, Any]], dimension: str) -> list[dict[str, Any]
     for group_name, group_rows in groups.items():
         commits = len(group_rows)
         spend = sum(item["estimated_cost"] for item in group_rows)
+        api_spend = sum(item["estimated_cost"] for item in group_rows if item.get("cost_mode") == "per_token")
+        subscription_spend = sum(item["estimated_cost"] for item in group_rows if item.get("cost_mode") == "subscription")
+        total_tokens = sum(int(item.get("estimated_tokens", 0)) for item in group_rows)
+        api_tokens = sum(int(item.get("estimated_tokens", 0)) for item in group_rows if item.get("cost_mode") == "per_token")
+        subscription_tokens = sum(
+            int(item.get("estimated_tokens", 0)) for item in group_rows if item.get("cost_mode") == "subscription"
+        )
         performance = sum(item["performance_score"] for item in group_rows)
         avg_longevity_days = sum(item["longevity_days"] for item in group_rows) / commits
         avg_bug_fix_count = sum(item["bug_fix_count"] for item in group_rows) / commits
@@ -303,6 +310,17 @@ def breakdown(rows: list[dict[str, Any]], dimension: str) -> list[dict[str, Any]
                 "commits": commits,
                 "usage_pct": round((commits / total_commits) * 100.0, 2),
                 "estimated_spend": round(spend, 4),
+                "api_spend": round(api_spend, 4),
+                "api_spend_pct": round((api_spend / spend) * 100.0, 2) if spend > 0 else 0.0,
+                "subscription_spend": round(subscription_spend, 4),
+                "subscription_spend_pct": round((subscription_spend / spend) * 100.0, 2) if spend > 0 else 0.0,
+                "estimated_tokens": total_tokens,
+                "api_tokens": api_tokens,
+                "api_tokens_pct": round((api_tokens / total_tokens) * 100.0, 2) if total_tokens > 0 else 0.0,
+                "subscription_tokens": subscription_tokens,
+                "subscription_tokens_pct": round((subscription_tokens / total_tokens) * 100.0, 2)
+                if total_tokens > 0
+                else 0.0,
                 "avg_performance_score": round(performance / commits, 2),
                 "avg_longevity_days": round(avg_longevity_days, 2),
                 "avg_bug_fix_count": round(avg_bug_fix_count, 2),

@@ -24,6 +24,15 @@ export type BreakdownItem = {
   commits: number;
   usage_pct: number;
   estimated_spend: number;
+  api_spend: number;
+  api_spend_pct: number;
+  subscription_spend: number;
+  subscription_spend_pct: number;
+  estimated_tokens: number;
+  api_tokens: number;
+  api_tokens_pct: number;
+  subscription_tokens: number;
+  subscription_tokens_pct: number;
   avg_performance_score: number;
   avg_longevity_days: number;
   avg_bug_fix_count: number;

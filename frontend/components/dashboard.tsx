@@ -23,6 +23,7 @@ type ModelMetricTab =
   | "bugfix"
   | "leadtime"
   | "iterations"
+  | "usage"
   | "cost"
   | "performance"
   | "roi";
@@ -37,6 +38,7 @@ const MODEL_METRIC_CONFIG: Record<
       | "avg_bug_fix_count"
       | "avg_lead_time_hours"
       | "avg_iterations_raw"
+      | "estimated_tokens"
       | "estimated_spend"
       | "avg_performance_score"
       | "roi_score";
@@ -94,6 +96,16 @@ const MODEL_METRIC_CONFIG: Record<
     valueFormatter: (value) => value.toFixed(2),
     tooltip:
       "Average review friction (revisions + comments/4). Compared to Human baseline. Lower is better. This metric contributes 15% to Performance."
+  },
+  usage: {
+    label: "Usage",
+    title: "Token Usage by Model",
+    dataKey: "estimated_tokens",
+    higherIsBetter: false,
+    yFormatter: (value) => `${(value / 1000).toFixed(1)}k`,
+    valueFormatter: (value) => `${value.toFixed(0)} tokens`,
+    tooltip:
+      "Estimated token usage by model. This compares model usage volume, not quality. Lower can mean either efficiency or lower usage."
   },
   cost: {
     label: "Cost",
@@ -494,7 +506,7 @@ export function Dashboard() {
   const sortedModelData = useMemo(() => {
     const dataKey = modelChartConfig.dataKey;
     const direction = modelChartConfig.higherIsBetter ? -1 : 1;
-    const hideHumanTabs: ModelMetricTab[] = ["cost", "roi"];
+    const hideHumanTabs: ModelMetricTab[] = ["usage", "cost", "roi"];
     const modelRows = hideHumanTabs.includes(modelChartTab) ? byModel.filter((row) => row.value !== "Human") : byModel;
     return [...modelRows].sort((left, right) => {
       const leftValue = Number(left[dataKey]);
@@ -903,6 +915,26 @@ export function Dashboard() {
                         <div style={{ color: "var(--text-muted)" }}>
                           {modelChartConfig.label}: {formattedValue}
                         </div>
+                        {modelChartTab === "usage" && (
+                          <>
+                            <div style={{ color: "var(--text-muted)" }}>
+                              API: {row.api_tokens.toFixed(1)} ({row.api_tokens_pct.toFixed(1)}%)
+                            </div>
+                            <div style={{ color: "var(--text-muted)" }}>
+                              Subscription: {row.subscription_tokens.toFixed(1)} ({row.subscription_tokens_pct.toFixed(1)}%)
+                            </div>
+                          </>
+                        )}
+                        {modelChartTab === "cost" && (
+                          <>
+                            <div style={{ color: "var(--text-muted)" }}>
+                              API: ${row.api_spend.toFixed(1)} ({row.api_spend_pct.toFixed(1)}%)
+                            </div>
+                            <div style={{ color: "var(--text-muted)" }}>
+                              Subscription: ${row.subscription_spend.toFixed(1)} ({row.subscription_spend_pct.toFixed(1)}%)
+                            </div>
+                          </>
+                        )}
                         {deltaKey && row.value !== "Human" && typeof deltaValue === "number" && (
                           <div style={{ color: "var(--text-muted)" }}>
                             vs Human: {formatDelta(deltaValue, modelChartConfig.valueFormatter)}
