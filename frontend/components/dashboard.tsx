@@ -105,7 +105,7 @@ const MODEL_METRIC_CONFIG: Record<
     yFormatter: (value) => `${(value / 1000).toFixed(1)}k`,
     valueFormatter: (value) => `${value.toFixed(0)} tokens`,
     tooltip:
-      "Estimated token usage by model. This compares model usage volume, not quality. Lower can mean either efficiency or lower usage."
+      "Estimated token usage by model. Lower can mean either efficiency or lower usage."
   },
   cost: {
     label: "Cost",
@@ -505,7 +505,7 @@ export function Dashboard() {
   const modelChartConfig = MODEL_METRIC_CONFIG[modelChartTab];
   const sortedModelData = useMemo(() => {
     const dataKey = modelChartConfig.dataKey;
-    const direction = modelChartConfig.higherIsBetter ? -1 : 1;
+    const direction = modelChartTab === "usage" ? -1 : modelChartConfig.higherIsBetter ? -1 : 1;
     const hideHumanTabs: ModelMetricTab[] = ["usage", "cost", "roi"];
     const modelRows = hideHumanTabs.includes(modelChartTab) ? byModel.filter((row) => row.value !== "Human") : byModel;
     return [...modelRows].sort((left, right) => {
