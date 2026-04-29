@@ -178,6 +178,10 @@ function money(value: number): string {
   return `$${value.toFixed(4)}`;
 }
 
+function moneySuffix(value: number): string {
+  return `${value.toFixed(4)}$`;
+}
+
 function SelectField({
   label,
   value,
@@ -890,7 +894,44 @@ export function Dashboard() {
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                 <YAxis yAxisId="spend" tick={{ fontSize: 11 }} />
                 <YAxis yAxisId="performance" orientation="right" domain={[0, 100]} tick={{ fontSize: 11 }} />
-                <Tooltip />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload || payload.length === 0) {
+                      return null;
+                    }
+                    const row = payload[0]?.payload as TrendPayload["points"][number] | undefined;
+                    if (!row) {
+                      return null;
+                    }
+                    return (
+                      <div
+                        style={{
+                          backgroundColor: "white",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          minWidth: 260,
+                          padding: "12px 14px",
+                          boxShadow: "0 4px 14px rgba(0, 0, 33, 0.12)",
+                          fontSize: 12
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{label}</div>
+                        <div style={{ color: "#D64141", fontSize: 14, lineHeight: 1.05, fontWeight: 800, marginBottom: 4 }}>
+                          estimated_spend : {moneySuffix(row.estimated_spend)}
+                        </div>
+                        <div style={{ color: "#111111", fontSize: 11, marginTop: 4 }}>
+                          API : {moneySuffix(row.api_spend)} ({row.api_spend_pct.toFixed(2)}%)
+                        </div>
+                        <div style={{ color: "#111111", fontSize: 11, marginBottom: 6 }}>
+                          Subscription : {moneySuffix(row.subscription_spend)} ({row.subscription_spend_pct.toFixed(2)}%)
+                        </div>
+                        <div style={{ color: "var(--brand-dark)", fontSize: 14, lineHeight: 1.05, fontWeight: 800 }}>
+                          avg_performance_score : {row.avg_performance_score.toFixed(2)}
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
                 <Line type="monotone" dataKey="estimated_spend" yAxisId="spend" stroke="#D64141" strokeWidth={2} dot={{ r: 2 }} />
                 <Line type="monotone" dataKey="avg_performance_score" yAxisId="performance" stroke="var(--brand-dark)" strokeWidth={2} dot={{ r: 2 }} />
               </LineChart>

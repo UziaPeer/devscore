@@ -349,6 +349,21 @@ def spend_trend(
     quarter: list[str] | None = None,
     sprint: list[str] | None = None,
 ) -> dict[str, Any]:
+    def _build_trend_point(label: str, group_rows: list[dict[str, Any]]) -> dict[str, Any]:
+        spend = sum(entry["estimated_cost"] for entry in group_rows)
+        api_spend = sum(entry["estimated_cost"] for entry in group_rows if entry.get("cost_mode") == "per_token")
+        subscription_spend = sum(entry["estimated_cost"] for entry in group_rows if entry.get("cost_mode") == "subscription")
+        return {
+            "label": label,
+            "estimated_spend": round(spend, 4),
+            "commits": len(group_rows),
+            "avg_performance_score": round(sum(entry["performance_score"] for entry in group_rows) / len(group_rows), 2),
+            "api_spend": round(api_spend, 4),
+            "api_spend_pct": round((api_spend / spend) * 100.0, 2) if spend > 0 else 0.0,
+            "subscription_spend": round(subscription_spend, 4),
+            "subscription_spend_pct": round((subscription_spend / spend) * 100.0, 2) if spend > 0 else 0.0,
+        }
+
     selected_sprint = sprint[0] if sprint and len(sprint) == 1 else None
     selected_quarter = quarter[0] if quarter and len(quarter) == 1 else None
 
@@ -360,15 +375,7 @@ def spend_trend(
 
         points: list[dict[str, Any]] = []
         for label, group_rows in groups.items():
-            spend = sum(entry["estimated_cost"] for entry in group_rows)
-            points.append(
-                {
-                    "label": label,
-                    "estimated_spend": round(spend, 4),
-                    "commits": len(group_rows),
-                    "avg_performance_score": round(sum(entry["performance_score"] for entry in group_rows) / len(group_rows), 2),
-                }
-            )
+            points.append(_build_trend_point(label, group_rows))
         points.sort(key=lambda item: item["label"])
         return {
             "mode": "sprint_daily",
@@ -383,15 +390,7 @@ def spend_trend(
 
         points = []
         for label, group_rows in groups.items():
-            spend = sum(entry["estimated_cost"] for entry in group_rows)
-            points.append(
-                {
-                    "label": label,
-                    "estimated_spend": round(spend, 4),
-                    "commits": len(group_rows),
-                    "avg_performance_score": round(sum(entry["performance_score"] for entry in group_rows) / len(group_rows), 2),
-                }
-            )
+            points.append(_build_trend_point(label, group_rows))
         points.sort(key=lambda item: _sprint_sort_key(item["label"]))
         return {
             "mode": "quarter_sprints",
@@ -405,15 +404,7 @@ def spend_trend(
 
     points = []
     for label, group_rows in groups.items():
-        spend = sum(entry["estimated_cost"] for entry in group_rows)
-        points.append(
-            {
-                "label": label,
-                "estimated_spend": round(spend, 4),
-                "commits": len(group_rows),
-                "avg_performance_score": round(sum(entry["performance_score"] for entry in group_rows) / len(group_rows), 2),
-            }
-        )
+        points.append(_build_trend_point(label, group_rows))
     points.sort(key=lambda item: item["label"])
     return {
         "mode": "quarterly",

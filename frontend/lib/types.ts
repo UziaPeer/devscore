@@ -69,6 +69,10 @@ export type TrendPoint = {
   estimated_spend: number;
   commits: number;
   avg_performance_score: number;
+  api_spend: number;
+  api_spend_pct: number;
+  subscription_spend: number;
+  subscription_spend_pct: number;
 };
 
 export type TrendPayload = {
