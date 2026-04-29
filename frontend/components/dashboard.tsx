@@ -66,7 +66,7 @@ const MODEL_METRIC_CONFIG: Record<
     yFormatter: (value) => `${value.toFixed(1)}d`,
     valueFormatter: (value) => `${value.toFixed(1)} days`,
     tooltip:
-      "Average days before code is overridden. Compared to Human baseline. Higher is better. This metric contributes 35% to Performance."
+      "Average days before code is overridden. Compared to Human baseline. Higher is better. Longer-lasting code usually means less short-term rework, so it supports higher estimated hours saved."
   },
   bugfix: {
     label: "Bug Fix",
@@ -76,7 +76,7 @@ const MODEL_METRIC_CONFIG: Record<
     deltaKey: "vs_human_bug_fix_count_delta",
     valueFormatter: (value) => value.toFixed(2),
     tooltip:
-      "Average bug-fix overrides per commit. Compared to Human baseline. Lower is better. This metric contributes 30% to Performance."
+      "Average bug-fix overrides per commit. Compared to Human baseline. Lower is better. Fewer bug-fix overrides usually means fewer follow-up corrections, which increases estimated hours saved."
   },
   leadtime: {
     label: "Lead Time",
@@ -87,7 +87,7 @@ const MODEL_METRIC_CONFIG: Record<
     yFormatter: (value) => `${value.toFixed(1)}h`,
     valueFormatter: (value) => `${value.toFixed(1)} hours`,
     tooltip:
-      "Average time to merge (hours). Compared to Human baseline. Lower is better. This metric contributes 20% to Performance."
+      "Average time to merge (hours). Compared to Human baseline. Lower is better. Shorter lead time generally reduces engineering coordination and waiting effort, which supports estimated hours saved."
   },
   iterations: {
     label: "Iterations",
@@ -97,7 +97,7 @@ const MODEL_METRIC_CONFIG: Record<
     deltaKey: "vs_human_iterations_raw_delta",
     valueFormatter: (value) => value.toFixed(2),
     tooltip:
-      "Average review friction (revisions + comments/4). Compared to Human baseline. Lower is better. This metric contributes 15% to Performance."
+      "Average review friction (revisions + comments/4). Compared to Human baseline. Lower is better. Fewer revisions and comments usually means less review overhead, which increases estimated hours saved."
   },
   usage: {
     label: "Usage",
