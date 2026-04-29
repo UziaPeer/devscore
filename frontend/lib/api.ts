@@ -74,6 +74,7 @@ export async function postAIQuick(snapshot: {
   recommendations: AIItem[];
   query_results: AIItem[];
   categories: AIItem[];
+  roi_highlights: AIItem[];
   model: string;
 }> {
   const response = await fetch(`${API_BASE}/ai/quick`, {
@@ -90,6 +91,7 @@ export async function postAIQuick(snapshot: {
     recommendations: AIItem[];
     query_results: AIItem[];
     categories: AIItem[];
+    roi_highlights: AIItem[];
     model: string;
   };
 }

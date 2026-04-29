@@ -184,6 +184,7 @@ type AiPanelState = {
   recommendations: AIItem[];
   categories: AIItem[];
   queryResults: AIItem[];
+  roiHighlights: AIItem[];
   model: string | null;
   loading: boolean;
   error: string | null;
@@ -523,11 +524,12 @@ export function Dashboard() {
     recommendations: [],
     categories: [],
     queryResults: [],
+    roiHighlights: [],
     model: null,
     loading: false,
     error: null
   });
-  const [activeAiTab, setActiveAiTab] = useState<"insights" | "recommendations" | "queryResults" | "categories">("insights");
+  const [activeAiTab, setActiveAiTab] = useState<"insights" | "recommendations" | "queryResults" | "categories" | "roiHighlights">("insights");
 
   useEffect(() => {
     Promise.all([getOptions(), getDataSource()])
@@ -647,6 +649,7 @@ export function Dashboard() {
         recommendations: quickResponse.recommendations,
         categories: quickResponse.categories,
         queryResults: quickResponse.query_results,
+        roiHighlights: quickResponse.roi_highlights,
         model: quickResponse.model,
         loading: false,
         error: null
@@ -1126,12 +1129,13 @@ export function Dashboard() {
                 { key: "insights", label: "Insights", count: aiState.insights.length },
                 { key: "recommendations", label: "Recommendations", count: aiState.recommendations.length },
                 { key: "queryResults", label: "Q&A", count: aiState.queryResults.length },
-                { key: "categories", label: "Categories", count: aiState.categories.length }
+                { key: "categories", label: "Categories", count: aiState.categories.length },
+                { key: "roiHighlights", label: "ROI Highlights", count: aiState.roiHighlights.length }
               ].map((tab) => (
                 <button
                   key={tab.key}
                   type="button"
-                  onClick={() => setActiveAiTab(tab.key as "insights" | "recommendations" | "queryResults" | "categories")}
+                  onClick={() => setActiveAiTab(tab.key as "insights" | "recommendations" | "queryResults" | "categories" | "roiHighlights")}
                   style={{
                     border: "none",
                     backgroundColor: activeAiTab === tab.key ? "var(--brand)" : "var(--surface)",

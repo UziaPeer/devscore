@@ -61,6 +61,7 @@ class QuickAIResponse(BaseModel):
     recommendations: list[dict[str, Any]]
     query_results: list[dict[str, Any]]
     categories: list[dict[str, Any]]
+    roi_highlights: list[dict[str, Any]]
     model: str
 
 
@@ -454,6 +455,50 @@ def _build_category_summary_from_breakdown(by_model: list[dict[str, Any]]) -> li
             }
         )
     return summary
+
+
+def _build_roi_highlights_from_breakdown(by_model: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    candidates: list[dict[str, Any]] = []
+    for row in by_model:
+        model_name = str(row.get("value", "Unknown"))
+        if model_name.strip().lower() == "human":
+            continue
+        hours_saved = float(row.get("estimated_hours_saved", 0.0))
+        value_saved = float(row.get("estimated_value_saved", 0.0))
+        spend = float(row.get("estimated_spend", 0.0))
+        roi_score = float(row.get("roi_score", 0.0))
+        if spend <= 0 or hours_saved <= 0 or value_saved <= 0:
+            continue
+        candidates.append(
+            {
+                "model": model_name,
+                "hours_saved": hours_saved,
+                "value_saved": value_saved,
+                "spend": spend,
+                "roi_score": roi_score,
+            }
+        )
+
+    candidates.sort(key=lambda item: item["roi_score"], reverse=True)
+    highlights: list[dict[str, Any]] = []
+    for item in candidates[:3]:
+        sentence = (
+            f'{item["model"]} saved an estimated {item["hours_saved"]:.0f} engineering hours, '
+            f'worth ${item["value_saved"]:,.0f}, at a cost of ${item["spend"]:,.0f}. '
+            f'ROI: {item["roi_score"]:.1f}x.'
+        )
+        highlights.append(
+            {
+                "title": f'{item["model"]} ROI Highlight',
+                "finding": sentence,
+                "model": item["model"],
+                "hours_saved": round(item["hours_saved"], 2),
+                "value_saved": round(item["value_saved"], 2),
+                "spend": round(item["spend"], 4),
+                "roi_score": round(item["roi_score"], 2),
+            }
+        )
+    return highlights
     raw_items = payload.get("items", [])
     if not isinstance(raw_items, list):
         raise HTTPException(status_code=502, detail="AI output did not include 'items' list.")
@@ -533,6 +578,7 @@ def ai_quick(payload: QuickAIPayload) -> QuickAIResponse:
     cleaned_payload = _strip_cost_performance_point(payload.model_dump())
     by_model = cleaned_payload.get("by_model", [])
     categories = _build_category_summary_from_breakdown(by_model if isinstance(by_model, list) else [])
+    roi_highlights = _build_roi_highlights_from_breakdown(by_model if isinstance(by_model, list) else [])
 
     ai_output = _run_ai_json(
         prompt=(
@@ -558,5 +604,6 @@ def ai_quick(payload: QuickAIPayload) -> QuickAIResponse:
         recommendations=recommendations,
         query_results=query_results,
         categories=categories,
+        roi_highlights=roi_highlights,
         model=ai_output["model"],
     )
